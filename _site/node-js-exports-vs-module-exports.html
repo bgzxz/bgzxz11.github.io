@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <meta name="apple-mobile-web-app-capable" content="yes" />
+   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+   <!-- <link rel="apple-touch-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone.png" /> -->
+   <link rel="apple-touch-icon-precomposed" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-precomposed.png" />
+   <link rel="apple-touch-icon" sizes="72x72" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad.png" />
+   <link rel="apple-touch-icon" sizes="114x114" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-retina.png" />
+   <link rel="apple-touch-icon" sizes="144x144" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad-retina.png" />
+   
+   <title>Node.js中exports与module.exports的区别</title>
+   <meta name="author" content="Jeremy Wei" />
+   <link href="http://feeds.feedburner.com/JeremyWei" rel="alternate" title="Jeremy Wei" type="application/atom+xml" />
+   <link rel="shortcut icon" type="image/x-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/favicon.ico">
+   
+   <!-- syntax highlighting CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/syntax.css?20130623" type="text/css" />
+   
+   <!-- Homepage CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/screen.css?20130721v1" type="text/css" media="screen, projection" />
+   <!-- <link rel="stylesheet" href="/css/screen.css?072122" type="text/css" media="screen, projection" /> -->
+   
+   <script type="text/javascript" charset="utf-8">
+   // Mobile Safari in standalone mode
+   if(("standalone" in window.navigator) && window.navigator.standalone){
+	   
+   	// If you want to prevent remote links in standalone web apps opening Mobile Safari, change 'remotes' to true
+   	var noddy, remotes = true;
+	
+   	document.addEventListener('click', function(event) {
+		
+   		noddy = event.target;
+		
+   		// Bubble up until we hit link or top HTML element. Warning: BODY element is not compulsory so better to stop on HTML
+   		while(noddy.nodeName !== "A" && noddy.nodeName !== "HTML") {
+   	        noddy = noddy.parentNode;
+   	    }
+		
+   		if('href' in noddy && noddy.href.indexOf('http') !== -1 && (noddy.href.indexOf(document.location.host) !== -1 || remotes))
+   		{
+   			event.preventDefault();
+   			document.location.href = noddy.href;
+   		}
+	
+   	},false);
+   }
+   </script>
+</head>
+<body>
+	
+<div class="site">
+  <pre class="nav margin-for-mobile">{"<a href='/tech.html'>文</a>", "<a href='/translate.html'>譯</a>", "<a href='/poem.html'>詩</a>", "<a href='/5000years.html'>國史</a>", "<a href='/resume.html'>己</a>"}</pre>
+  <br />
+  <div id="post">
+	<h1>Node.js中exports与module.exports的区别</h1>
+	<div class="copyright">
+	作者: JeremyWei | 可以转载, 但必须以超链接形式标明文章原始出处和作者信息及版权声明<br />
+	网址: http://weizhifeng.net/node-js-exports-vs-module-exports.html
+	</div>
+
+	<p><img src="http://s0-weizhifeng-net.b0.upaiyun.com/images/tech/nodejs.jpg" title="Node.js" alt="Node.js" /></p>
+
+<h1>Node.js中exports和module.exports有什么不同？</h1>
+
+<p>你肯定对<code>Node.js</code>模块中用来创建函数的<code>exports</code>对象很熟悉（假设一个名为<code>rocker.js</code>的文件）：</p>
+
+<pre><code>exports.name = function() {
+    console.log('My name is Lemmy Kilmister');
+};
+</code></pre>
+
+<p>然后你在另一个文件中调用：</p>
+
+<pre><code>var rocker = require('./rocker.js');
+rocker.name(); // 'My name is Lemmy Kilmister'
+</code></pre>
+
+<p>但是<code>module.exports</code>到底是个什么玩意儿? 它合法吗？</p>
+
+<p>令人吃惊的是-<code>module.exports</code>是真实存在的东西。<code>exports</code>只是<code>module.exports</code>的辅助方法。你的模块最终返回<code>module.exports</code>给调用者，而不是<code>exports</code>。<code>exports</code>所做的事情是收集属性，如果<code>module.exports</code>当前没有任何属性的话，<code>exports</code>会把这些属性赋予<code>module.exports</code>。如果<code>module.exports</code>已经存在一些属性的话，那么<code>exports</code>中所用的东西都会被忽略。</p>
+
+<p>把下面的内容放到<code>rocker.js</code>:</p>
+
+<pre><code>module.exports = 'ROCK IT!';
+exports.name = function() {
+    console.log('My name is Lemmy Kilmister');
+};
+</code></pre>
+
+<p>然后把下面的内容放到另一个文件中，执行它：</p>
+
+<pre><code>var rocker = require('./rocker.js');
+rocker.name(); // TypeError: Object ROCK IT! has no method 'name'
+</code></pre>
+
+<p>rocker模块完全忽略了<code>exports.name</code>，然后返回了一个字符串'ROCK IT!'。通过上面的例子，你可能认识到你的模块不一定非得是模块实例（module instances）。你的模块可以是任何合法的JavaScript对象 - boolean，number，date，JSON， string，function，array和其他。你的模块可以是任何你赋予<code>module.exports</code>的值。如果你没有明确的给<code>module.exports</code>设置任何值，那么<code>exports</code>中的属性会被赋给<code>module.exports</code>中，然后并返回它。</p>
+
+<p>在下面的情况下，你的模块是一个类：</p>
+
+<pre><code>module.exports = function(name, age) {
+    this.name = name;
+    this.age = age;
+    this.about = function() {
+        console.log(this.name +' is '+ this.age +' years old');
+    };
+};
+</code></pre>
+
+<p>然后你应该这样使用它：</p>
+
+<pre><code>var Rocker = require('./rocker.js');
+var r = new Rocker('Ozzy', 62);
+r.about(); // Ozzy is 62 years old
+</code></pre>
+
+<p>在下面的情况下，你的模块是一个数组：</p>
+
+<pre><code>module.exports = ['Lemmy Kilmister', 'Ozzy Osbourne', 'Ronnie James Dio', 'Steven Tyler', 'Mick Jagger'];
+</code></pre>
+
+<p>然后你应该这样使用它：</p>
+
+<pre><code>var rocker = require('./rocker.js');
+console.log('Rockin in heaven: ' + rocker[2]); //Rockin in heaven: Ronnie James Dio
+</code></pre>
+
+<p>现在你应该找到要点了 - 如果你想要你的模块成为一个特别的对象类型，那么使用<code>module.exports</code>；如果你希望你的模块成为一个传统的<code>模块实例</code>（module instance），使用<code>exports</code>。</p>
+
+<p>把属性赋予<code>module.exports</code>的结果与把属性赋予给<code>exports</code>是一样的。看下面这个例子：</p>
+
+<pre><code>module.exports.name = function() {
+    console.log('My name is Lemmy Kilmister');
+};
+</code></pre>
+
+<p>下面这个做的是一样的事情：</p>
+
+<pre><code>exports.name = function() {
+    console.log('My name is Lemmy Kilmister');
+};
+</code></pre>
+
+<p>但是请注意，它们并不是一样的东西。就像我之前说的<code>module.exports</code>是真实存在的东西，<code>exports</code>只是它的辅助方法。话虽如此，<code>exports</code>还是推荐的对象，除非你想把你模块
+的对象类型从传统的<code>模块实例</code>（module instance）修改为其他的。</p>
+
+<p>我希望这篇文章能帮助你理解<code>exports</code>和<code>module.exports</code>之间的不同，并且能进一步的理解模块在<code>Node.js</code>中是怎么工作的。如果有任何问题，请在回复里边留言。</p>
+
+<p>原文：<a href="http://www.hacksparrow.com/node-js-exports-vs-module-exports.html">http://www.hacksparrow.com/node-js-exports-vs-module-exports.html</a></p>
+
+	(完)
+
+	<div class="post-info">
+		18 May 2013  
+	
+		
+	
+		
+	</div>
+	
+	<!-- disqus start -->
+	<div id="disqus_thread"></div>
+	<script type="text/javascript">
+	    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+	    var disqus_shortname = 'jeremywei'; // required: replace example with your forum shortname
+
+	    /* * * DON'T EDIT BELOW THIS LINE * * */
+	    (function() {
+	        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+	        dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+	        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	    })();
+	</script>
+	<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+	<!-- disqus end -->
+
+	<!-- related start -->
+	<div id="related">
+	  <h2>相关内容</h2>
+	  <ul class="posts">
+	    
+	      <li><span>21 Jul 2013</span> &raquo; <a href="/viewports.html">两个viewport的故事（第一部分）</a></li>
+	    
+	      <li><span>14 Jul 2013</span> &raquo; <a href="/a-pixel-is-not.html">不是像素的像素不是像素</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/make-web-app-more-native.html">把你的网站改造成一个iOS Web App</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/cross-browser-inline-block.html">跨浏览器的Inline-Block</a></li>
+	    
+	      <li><span>30 Jun 2013</span> &raquo; <a href="/css-underscore-hack.html">The Underscore Hack</a></li>
+	    
+	  </ul>
+	</div>
+	<!-- related end -->
+</div>
+  
+<div class="footer"></div>
+<div class="power">  
+  Powered by <a href="http://github.com/" targe="_blank">Github</a> &nbsp;&amp;&amp;&nbsp; <a href="http://jekyllrb.com/" target="_blank">Jekyll</a> 
+</div>
+</div>
+
+<a href="http://github.com/jeremywei" target="_blank">
+	<img class="right-banner first" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub" />
+</a>
+
+<a href="http://www.phptherightway.com" target="_blank">
+    <img class="right-banner second" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/php-the-right-way-120x60.png" alt="PHP: The Right Way"/>
+</a>
+</body>
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-5179718-7']);
+  _gaq.push(['_setDomainName', 'weizhifeng.net']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</html>

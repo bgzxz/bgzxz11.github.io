@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <meta name="apple-mobile-web-app-capable" content="yes" />
+   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+   <!-- <link rel="apple-touch-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone.png" /> -->
+   <link rel="apple-touch-icon-precomposed" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-precomposed.png" />
+   <link rel="apple-touch-icon" sizes="72x72" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad.png" />
+   <link rel="apple-touch-icon" sizes="114x114" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-retina.png" />
+   <link rel="apple-touch-icon" sizes="144x144" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad-retina.png" />
+   
+   <title>念</title>
+   <meta name="author" content="Jeremy Wei" />
+   <link href="http://feeds.feedburner.com/JeremyWei" rel="alternate" title="Jeremy Wei" type="application/atom+xml" />
+   <link rel="shortcut icon" type="image/x-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/favicon.ico">
+   
+   <!-- syntax highlighting CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/syntax.css?20130623" type="text/css" />
+   
+   <!-- Homepage CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/screen.css?20130721v1" type="text/css" media="screen, projection" />
+   <!-- <link rel="stylesheet" href="/css/screen.css?072122" type="text/css" media="screen, projection" /> -->
+   
+   <script type="text/javascript" charset="utf-8">
+   // Mobile Safari in standalone mode
+   if(("standalone" in window.navigator) && window.navigator.standalone){
+	   
+   	// If you want to prevent remote links in standalone web apps opening Mobile Safari, change 'remotes' to true
+   	var noddy, remotes = true;
+	
+   	document.addEventListener('click', function(event) {
+		
+   		noddy = event.target;
+		
+   		// Bubble up until we hit link or top HTML element. Warning: BODY element is not compulsory so better to stop on HTML
+   		while(noddy.nodeName !== "A" && noddy.nodeName !== "HTML") {
+   	        noddy = noddy.parentNode;
+   	    }
+		
+   		if('href' in noddy && noddy.href.indexOf('http') !== -1 && (noddy.href.indexOf(document.location.host) !== -1 || remotes))
+   		{
+   			event.preventDefault();
+   			document.location.href = noddy.href;
+   		}
+	
+   	},false);
+   }
+   </script>
+</head>
+<body>
+	
+<div class="site">
+  <pre class="nav margin-for-mobile">{"<a href='/tech.html'>文</a>", "<a href='/translate.html'>譯</a>", "<a href='/poem.html'>詩</a>", "<a href='/5000years.html'>國史</a>", "<a href='/resume.html'>己</a>"}</pre>
+  <br />
+  <div id="home">
+  <h1>文</h1>
+  <ul class="posts">
+	    
+		<li><span>06 Jul 2013</span> &raquo; <a href="/make-web-app-more-native.html">把你的网站改造成一个iOS Web App</a></li>
+        
+		<li><span>30 Apr 2013</span> &raquo; <a href="/xcode-debug-on-jailbreak-iphone.html">在越狱iPhone上进行Xcode调试</a></li>
+        
+		<li><span>14 Apr 2013</span> &raquo; <a href="/weixin-with-node.js.html">微信API For Node.js</a></li>
+        
+		<li><span>05 Apr 2013</span> &raquo; <a href="/manage-php-dependency-with-composer.html">PHP依赖管理工具Composer入门</a></li>
+        
+		<li><span>03 Feb 2013</span> &raquo; <a href="/javascript-prototype.html">JavaScript Prototype</a></li>
+        
+		<li><span>24 Nov 2012</span> &raquo; <a href="/git-with-dropbox.html">把Dropbox改造为Git私有仓库</a></li>
+        
+		<li><span>23 Sep 2012</span> &raquo; <a href="/ruby-on-rails.html">Ruby On Rails环境搭建</a></li>
+        
+		<li><span>25 Aug 2012</span> &raquo; <a href="/blog-with-jekyll-on-github.html">利用Jekyll在Github上写博客</a></li>
+        
+		<li><span>16 Jun 2012</span> &raquo; <a href="/build-git-server-with-gitosis.html">使用Gitosis搭建Git服务器</a></li>
+        
+		<li><span>17 May 2012</span> &raquo; <a href="/php-security-functions.html">PHP安全函数</a></li>
+    
+	<a href="/tech.html">更多</a>
+  </ul>
+
+  <h1>譯</h1>
+  <ul class="posts">
+    
+		<li><span>21 Jul 2013</span> &raquo; <a href="/viewports.html">两个viewport的故事（第一部分）</a></li>
+    
+		<li><span>14 Jul 2013</span> &raquo; <a href="/a-pixel-is-not.html">不是像素的像素不是像素</a></li>
+    
+		<li><span>06 Jul 2013</span> &raquo; <a href="/cross-browser-inline-block.html">跨浏览器的Inline-Block</a></li>
+    
+		<li><span>30 Jun 2013</span> &raquo; <a href="/css-underscore-hack.html">The Underscore Hack</a></li>
+    
+		<li><span>29 Jun 2013</span> &raquo; <a href="/css-21-selectors-part-3.html">CSS 2.1选择器第三部分</a></li>
+    
+		<li><span>23 Jun 2013</span> &raquo; <a href="/css-21-selectors-part-2.html">CSS 2.1选择器第二部分</a></li>
+    
+		<li><span>22 Jun 2013</span> &raquo; <a href="/css-21-selectors-part-1.html">CSS 2.1选择器第一部分</a></li>
+    
+		<li><span>18 May 2013</span> &raquo; <a href="/node-js-exports-vs-module-exports.html">Node.js中exports与module.exports的区别</a></li>
+    
+		<li><span>05 Sep 2012</span> &raquo; <a href="/redis-protocol.html">Redis协议</a></li>
+    
+		<li><span>23 Jun 2012</span> &raquo; <a href="/why-not-using-git-flow.html">为什么还不快使用git-flow？</a></li>
+    
+	<a href="/translate.html">更多</a>
+  </ul>
+
+  <h1>詩</h1>
+  <ul class="posts">
+    
+		<li><span>09 May 2013</span> &raquo; <a href="/guohouhu.html">過後湖</a></li>
+    
+		<li><span>13 Sep 2012</span> &raquo; <a href="/bayuexihu.html">八月西湖</a></li>
+    
+		<li><span>26 Aug 2012</span> &raquo; <a href="/september-walk.html">秋夜行</a></li>
+    
+		<li><span>26 Jul 2012</span> &raquo; <a href="/28019936326.html">盛世帝都</a></li>
+    
+		<li><span>22 Jun 2012</span> &raquo; <a href="/25627960985.html">憶李後主</a></li>
+    
+		<li><span>27 Mar 2012</span> &raquo; <a href="/23230343929.html">三月金陵閑走</a></li>
+    
+		<li><span>10 Mar 2012</span> &raquo; <a href="/23230308843.html">初春多雨</a></li>
+    
+		<li><span>13 Dec 2011</span> &raquo; <a href="/23230260090.html">祭三七</a></li>
+    
+		<li><span>23 Oct 2011</span> &raquo; <a href="/23230184594.html">中秋夜於蘇州</a></li>
+    
+		<li><span>27 Jul 2011</span> &raquo; <a href="/23997919999.html">半日閑</a></li>
+    
+	<a href="/poem.html">更多</a>
+  </ul>
+  
+  
+  <h1>國史</h1>
+  <ul class="posts">
+      
+  		<li><span>22 Jun 2013</span> &raquo; <a href="/letters.html">蔣中正遺囑</a></li>
+      
+	  <a href="/5000years.html">更多</a>
+  </ul>  
+  
+</div>
+
+  
+<div class="footer"></div>
+<div class="power">  
+  Powered by <a href="http://github.com/" targe="_blank">Github</a> &nbsp;&amp;&amp;&nbsp; <a href="http://jekyllrb.com/" target="_blank">Jekyll</a> 
+</div>
+</div>
+
+<a href="http://github.com/jeremywei" target="_blank">
+	<img class="right-banner first" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub" />
+</a>
+
+<a href="http://www.phptherightway.com" target="_blank">
+    <img class="right-banner second" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/php-the-right-way-120x60.png" alt="PHP: The Right Way"/>
+</a>
+</body>
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-5179718-7']);
+  _gaq.push(['_setDomainName', 'weizhifeng.net']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</html>

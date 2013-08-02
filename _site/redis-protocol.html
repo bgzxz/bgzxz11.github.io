@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <meta name="apple-mobile-web-app-capable" content="yes" />
+   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+   <!-- <link rel="apple-touch-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone.png" /> -->
+   <link rel="apple-touch-icon-precomposed" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-precomposed.png" />
+   <link rel="apple-touch-icon" sizes="72x72" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad.png" />
+   <link rel="apple-touch-icon" sizes="114x114" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-retina.png" />
+   <link rel="apple-touch-icon" sizes="144x144" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad-retina.png" />
+   
+   <title>Redis协议</title>
+   <meta name="author" content="Jeremy Wei" />
+   <link href="http://feeds.feedburner.com/JeremyWei" rel="alternate" title="Jeremy Wei" type="application/atom+xml" />
+   <link rel="shortcut icon" type="image/x-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/favicon.ico">
+   
+   <!-- syntax highlighting CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/syntax.css?20130623" type="text/css" />
+   
+   <!-- Homepage CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/screen.css?20130721v1" type="text/css" media="screen, projection" />
+   <!-- <link rel="stylesheet" href="/css/screen.css?072122" type="text/css" media="screen, projection" /> -->
+   
+   <script type="text/javascript" charset="utf-8">
+   // Mobile Safari in standalone mode
+   if(("standalone" in window.navigator) && window.navigator.standalone){
+	   
+   	// If you want to prevent remote links in standalone web apps opening Mobile Safari, change 'remotes' to true
+   	var noddy, remotes = true;
+	
+   	document.addEventListener('click', function(event) {
+		
+   		noddy = event.target;
+		
+   		// Bubble up until we hit link or top HTML element. Warning: BODY element is not compulsory so better to stop on HTML
+   		while(noddy.nodeName !== "A" && noddy.nodeName !== "HTML") {
+   	        noddy = noddy.parentNode;
+   	    }
+		
+   		if('href' in noddy && noddy.href.indexOf('http') !== -1 && (noddy.href.indexOf(document.location.host) !== -1 || remotes))
+   		{
+   			event.preventDefault();
+   			document.location.href = noddy.href;
+   		}
+	
+   	},false);
+   }
+   </script>
+</head>
+<body>
+	
+<div class="site">
+  <pre class="nav margin-for-mobile">{"<a href='/tech.html'>文</a>", "<a href='/translate.html'>譯</a>", "<a href='/poem.html'>詩</a>", "<a href='/5000years.html'>國史</a>", "<a href='/resume.html'>己</a>"}</pre>
+  <br />
+  <div id="post">
+	<h1>Redis协议</h1>
+	<div class="copyright">
+	作者: JeremyWei | 可以转载, 但必须以超链接形式标明文章原始出处和作者信息及版权声明<br />
+	网址: http://weizhifeng.net/redis-protocol.html
+	</div>
+
+	<p><img src="http://s0-weizhifeng-net.b0.upaiyun.com/images/tech/redis.png" title="Redis" alt="Redis" /></p>
+
+<p>Redis协议是从以下几个方面做的一个折中方案：</p>
+
+<ul>
+<li>容易实现</li>
+<li>机器解析要快</li>
+<li>容易被人理解</li>
+</ul>
+
+
+<h3>网络层</h3>
+
+<p>客户端通过创建到6379端口的TCP连接来连接到一个Redis服务器。每个Redis命令或者客户端和服务器之间传输的数据都以\r\n (CRLF)结束。</p>
+
+<h3>请求</h3>
+
+<p>Redis可以接受由不同参数组成的命令。只要接收到一个命令，这个命令就会被执行，然后一个答复会被返回给客户端。</p>
+
+<h3>新的统一请求协议</h3>
+
+<p>新的统一协议是在Redis1.2中引入的，但是在Redis2.0中成为了与Redis服务器交互的标准方式。在统一协议中所有发送到Redis服务器的参数都是二进制安全的。这是总体格式：</p>
+
+<pre><code>*&lt;number of arguments&gt; CR LF
+$&lt;number of bytes of argument 1&gt; CR LF
+&lt;argument data&gt; CR LF
+...
+$&lt;number of bytes of argument N&gt; CR LF
+&lt;argument data&gt; CR LF
+</code></pre>
+
+<p>看下这个例子：</p>
+
+<pre><code>*3
+$3
+SET
+$5
+mykey
+$7
+myvalue
+</code></pre>
+
+<p>这是以上命令以带引号的字符串展现的样子，这样就可以看到这个请求中每个字节的准确内容：</p>
+
+<pre><code>"*3\r\n$3\r\nSET\r\n$5\r\nmykey\r\n$7\r\nmyvalue\r\n"
+</code></pre>
+
+<p>就像你一会将会看到的，这个格式还会被用在Redis回复中。这个被用于每个参数中的格式$6\r\nmydata\r\n叫做Bulk 回复。Redis实际上使用的统一请求协议会返回内容列表，叫做<a href="#multi-bulk-reply">Multi-bulk回复</a>。它是由N个不同的Bulk 回复合在一起，并且有一个字符串前缀*&lt;argc&gt;\r\n其中&lt;argc&gt;是后面参数（Bulk回复）的数量。</p>
+
+<h3>回复</h3>
+
+<p>Redis会以不同类型的回复对命令进行响应。可以通过服务器发送的第一个字节来判定回复的类型：</p>
+
+<ul>
+<li>如果是单行回复，那么第一个字节是「+」</li>
+<li>如果回复的内容是错误信息，那么第一个字节是「_」</li>
+<li>如果回复的内容是一个整型数字，那么第一个字节是「:」</li>
+<li>如果是bulk回复，那么第一个字节是「$」</li>
+<li>如果是multi-bulk回复，那么第一个字节是「*」</li>
+</ul>
+
+
+<h3>状态回复</h3>
+
+<p>一个状态回复（或者：单行回复）的格式是以「+」开头，以「\r\n」结束的单行字符串。举个例子：</p>
+
+<pre><code>+OK
+</code></pre>
+
+<p>客户端库要返回「+」后面的所有内容，这个例子里边是字符串「OK」。</p>
+
+<h3>错误回复</h3>
+
+<p>错误的发送方式和状态回复很像。唯一的不同是第一个字节用「-」替代了「+」。
+错误回复只有当一些奇怪的事情发生时才会被发送，例如如果你想要用错误的数据类型执行一个操作，或者这个命令不存在等等。所以客户端库应该在接收到一个错误回复的时候抛出一个异常。</p>
+
+<h3>整形回复</h3>
+
+<p>这个类型的回复就是一个代表整数以CRLF结束的字符串，并且用一个字节的字符「:」作为前缀。例如「:0\r\n」，或者「:1000\r\n」都是整形回复。
+像INCR或者LASTSAVE命令使用整型回复来返回一个没有特别含义的整型数字。对于INCR来说返回的是增加后的数字，对于LASTSAVE来说是一个UNIX时间等等。
+像EXISTS这样的命令会返回1表示true，返回0表示false。
+其他命令像SADD，SREM和SETNX在操作实际完成的时候会返回1，否则返回0。
+以下命令将会返回整型回复：SETNX, DEL, EXISTS, INCR, INCRBY, DECR, DECRBY, DBSIZE, LASTSAVE, RENAMENX, MOVE, LLEN, SADD, SREM, SISMEMBER, SCARD</p>
+
+<h3>Bulk回复</h3>
+
+<p>Bulk回复被服务器用来返回一个二进制安全的字符串。</p>
+
+<pre><code>C: GET mykey
+S: $6\r\nfoobar\r\n
+</code></pre>
+
+<p>服务器以这种方式来发送数据：第一行是一个字节的内容「$」，之后跟着具体内容的字节数，接下来是CRLF，然后具体数据内容被发送，接下来是额外的两个字节的CRLF。服务器实际发送的序列是：</p>
+
+<pre><code>"$6\r\nfoobar\r\n"
+</code></pre>
+
+<p>如果请求的内容不存在，那么bulk回复将会使用特殊值-1作为数据长度，例如：</p>
+
+<pre><code>C: GET nonexistingkey
+S: $-1
+</code></pre>
+
+<p>当请求对象不存在，客户端库API不要返回一个空字符串，应该是一个nil对象。举个例子一个Ruby库应该返回「nil」，一个C库应该返回NULL（或者在回复对象中设置一个特殊标记），等等。</p>
+
+<h3>Multi-bulk回复</h3>
+
+<div id="multi-bulk-reply"></div>
+
+
+<p>像LRANGE这类的命令需要返回多个值（列表中的每个元素是一个值，LRANGE需要返回多个元素）。这通过multiple bulk write来实现，其第一行指明后面有多少个bulk　write。一个multi bulk回复的第一个字节一直是*。例如：</p>
+
+<pre><code>C: LRANGE mylist 0 3
+s: *4
+s: $3
+s: foo
+s: $3
+s: bar
+s: $5
+s: Hello
+s: $5
+s: World
+</code></pre>
+
+<p>就像你看到的，multi bulk 回复和使用统一协议发送命令到Redis服务器使用的是同样的格式。
+服务器发送的第一行是*4\r\n，用来指出下面将会有四个bulk回复。然后每个bulk write将会被传送。
+如果指定的key不存在，那么这个key被认为拥有一个空列表，然后0会做为multi bulk的数量被发送。例如：</p>
+
+<pre><code>C: LRANGE nokey 0 1
+S: *0
+</code></pre>
+
+<p>当<a href="http://redis.io/commands/blpop" title="BLPOP">BLPOP</a>命令超时，它将返回值为nil的multi bulk回复。这个类型的multi bulk的数量为-1并且应该被解释为nil值。例如：</p>
+
+<pre><code>C: BLPOP key 1
+S: *-1
+</code></pre>
+
+<p>当这个发生的时候，一个客户端库API应该返回一个nil对象而不是一个空列表。区分一个空的列表和一个错误条件（比如<a href="http://redis.io/commands/blpop" title="BLPOP">BLPOP</a>命令的超时条件）是必要的。</p>
+
+<h3>Multi-Bulk回复中的Nil元素</h3>
+
+<p>一个multi bulk　回复的单个元素可能会存在-1的长度，用来指明这个元素不存在并且不是空字符串。这个可能发生在启用了GET模式选项的SORT命令，并且指定的key不存在。包含一个空元素的multi bulk回复的例子：</p>
+
+<pre><code>S: *3
+S: $3
+S: foo
+S: $-1
+S: $3
+S: bar
+</code></pre>
+
+<p>第二个元素是nil。客户端库需要返回如下内容：</p>
+
+<pre><code>["foo",nil,"bar"]
+</code></pre>
+
+<h3>多个命令和管道</h3>
+
+<p>一个客户端可以使用相同的连接来发送多个命令。Redis是支持管道的，所以客户端可以通过一次写操作发送多个命令，不需要读取服务器的回复才能发送下一个命令。所有的回复可以在最后读取。
+通常情况下Redis服务器和客户端之间会有非常快的连接，所以客户端支持这个特性不是那么重要，但如果一个应用需要在很短的时间里发送大量的命令那么使用管道将会非常快。</p>
+
+<h3>发送命令的旧协议</h3>
+
+<p>在统一请求协议之前，Redis使用一个不同的协议来发送命令，这个协议仍然被支持因为通过telnet它很容易手写。在这个协议中存在两种命令：</p>
+
+<ul>
+<li>inline 命令: 命令很简单，就是用空格把参数分隔开来的字符串。二进制安全是不可能的。</li>
+<li>Bulk   命令: bulk命令和inline命令几乎是一样的，但是最后一个参数为了能够接受二进制安全的内容，所以需要以特殊的方式进行处理。</li>
+</ul>
+
+
+<h3>Inline命令</h3>
+
+<p>向Redis发送命令最简单的方法是使用inline命令。以下是一个服务器/客户端之间使用inline命令进行交互的例子（服务器以S:作为开始，客户端以C:作为开始）</p>
+
+<pre><code>C: PING
+S: +PONG
+</code></pre>
+
+<p>以下是另一个例子，一个返回整数的inline命令：</p>
+
+<pre><code>C: EXISTS somekey
+S: :0
+</code></pre>
+
+<p>由于「somekey」不存在，所以服务器返回「:0」。
+注意EXISTS命令只带有一个参数。多个参数以空格进行分隔。</p>
+
+<h3>Bulk命令</h3>
+
+<p>当一些命令以inline命令发送的时候为了使最后一个参数支持二进制安全，需要以一个特殊的格式发送。这些命令将会把最后一个参数作为「字节计数器」，然后大量的数据会被发送（这些数据可以为二进制安全，因为服务器知道有多少字节需要读取）。
+看下面这个例子：</p>
+
+<pre><code>C: SET mykey 6
+C: foobar
+S: +OK
+</code></pre>
+
+<p>这个命令的最后一个参数是「6」。这个指明了后面数据，字符串「foobar」的字节数。注意即使这些数据被额外的二个字节大小的CRLF所截断。所有bulk命令的准确格式是：把最后一个参数替换成后面数据的字节数，接下来是数据本身和CRLF。为了能够让程序员更加清晰的理解，这是上面例子中客户端发送的字符串：</p>
+
+<pre><code>"SET mykey 6\r\nfoobar\r\n"
+</code></pre>
+
+<p>Redis有一个内部的列表，记录了什么命令是inline，什么命令是bulk，所以你需要参考这个来发送命令。强烈推荐使用新的统一请求协议来替代旧的协议。</p>
+
+<p>原文：<a href="http://redis.io/topics/protocol" title="Redis protocol">Protocol specification</a></p>
+
+	(完)
+
+	<div class="post-info">
+		05 Sep 2012  
+	
+		
+	
+		
+	</div>
+	
+	<!-- disqus start -->
+	<div id="disqus_thread"></div>
+	<script type="text/javascript">
+	    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+	    var disqus_shortname = 'jeremywei'; // required: replace example with your forum shortname
+
+	    /* * * DON'T EDIT BELOW THIS LINE * * */
+	    (function() {
+	        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+	        dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+	        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	    })();
+	</script>
+	<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+	<!-- disqus end -->
+
+	<!-- related start -->
+	<div id="related">
+	  <h2>相关内容</h2>
+	  <ul class="posts">
+	    
+	      <li><span>21 Jul 2013</span> &raquo; <a href="/viewports.html">两个viewport的故事（第一部分）</a></li>
+	    
+	      <li><span>14 Jul 2013</span> &raquo; <a href="/a-pixel-is-not.html">不是像素的像素不是像素</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/make-web-app-more-native.html">把你的网站改造成一个iOS Web App</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/cross-browser-inline-block.html">跨浏览器的Inline-Block</a></li>
+	    
+	      <li><span>30 Jun 2013</span> &raquo; <a href="/css-underscore-hack.html">The Underscore Hack</a></li>
+	    
+	  </ul>
+	</div>
+	<!-- related end -->
+</div>
+  
+<div class="footer"></div>
+<div class="power">  
+  Powered by <a href="http://github.com/" targe="_blank">Github</a> &nbsp;&amp;&amp;&nbsp; <a href="http://jekyllrb.com/" target="_blank">Jekyll</a> 
+</div>
+</div>
+
+<a href="http://github.com/jeremywei" target="_blank">
+	<img class="right-banner first" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub" />
+</a>
+
+<a href="http://www.phptherightway.com" target="_blank">
+    <img class="right-banner second" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/php-the-right-way-120x60.png" alt="PHP: The Right Way"/>
+</a>
+</body>
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-5179718-7']);
+  _gaq.push(['_setDomainName', 'weizhifeng.net']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</html>

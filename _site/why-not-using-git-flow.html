@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <meta name="apple-mobile-web-app-capable" content="yes" />
+   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+   <!-- <link rel="apple-touch-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone.png" /> -->
+   <link rel="apple-touch-icon-precomposed" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-precomposed.png" />
+   <link rel="apple-touch-icon" sizes="72x72" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad.png" />
+   <link rel="apple-touch-icon" sizes="114x114" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-retina.png" />
+   <link rel="apple-touch-icon" sizes="144x144" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad-retina.png" />
+   
+   <title>为什么还不快使用git-flow？</title>
+   <meta name="author" content="Jeremy Wei" />
+   <link href="http://feeds.feedburner.com/JeremyWei" rel="alternate" title="Jeremy Wei" type="application/atom+xml" />
+   <link rel="shortcut icon" type="image/x-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/favicon.ico">
+   
+   <!-- syntax highlighting CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/syntax.css?20130623" type="text/css" />
+   
+   <!-- Homepage CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/screen.css?20130721v1" type="text/css" media="screen, projection" />
+   <!-- <link rel="stylesheet" href="/css/screen.css?072122" type="text/css" media="screen, projection" /> -->
+   
+   <script type="text/javascript" charset="utf-8">
+   // Mobile Safari in standalone mode
+   if(("standalone" in window.navigator) && window.navigator.standalone){
+	   
+   	// If you want to prevent remote links in standalone web apps opening Mobile Safari, change 'remotes' to true
+   	var noddy, remotes = true;
+	
+   	document.addEventListener('click', function(event) {
+		
+   		noddy = event.target;
+		
+   		// Bubble up until we hit link or top HTML element. Warning: BODY element is not compulsory so better to stop on HTML
+   		while(noddy.nodeName !== "A" && noddy.nodeName !== "HTML") {
+   	        noddy = noddy.parentNode;
+   	    }
+		
+   		if('href' in noddy && noddy.href.indexOf('http') !== -1 && (noddy.href.indexOf(document.location.host) !== -1 || remotes))
+   		{
+   			event.preventDefault();
+   			document.location.href = noddy.href;
+   		}
+	
+   	},false);
+   }
+   </script>
+</head>
+<body>
+	
+<div class="site">
+  <pre class="nav margin-for-mobile">{"<a href='/tech.html'>文</a>", "<a href='/translate.html'>譯</a>", "<a href='/poem.html'>詩</a>", "<a href='/5000years.html'>國史</a>", "<a href='/resume.html'>己</a>"}</pre>
+  <br />
+  <div id="post">
+	<h1>为什么还不快使用git-flow？</h1>
+	<div class="copyright">
+	作者: JeremyWei | 可以转载, 但必须以超链接形式标明文章原始出处和作者信息及版权声明<br />
+	网址: http://weizhifeng.net/why-not-using-git-flow.html
+	</div>
+
+	<p>今年一月份的时候，<a href="http://twitter.com/nvie" title="@nvie">@nvie</a>发表了「<a href="http://nvie.com/posts/a-successful-git-branching-model/" title="model">A successful Git branching model</a>」，在这篇文章里他介绍了如何保持自己的Git仓库优雅并且整洁。除此之外，他还放出了<a href="http://github.com/nvie/gitflow" title="gitflow">git-flow</a>：一组Git扩展，可以异常容易地使用这个模型。</p>
+
+<p>我非常吃惊许多人之前根本没有听说过它，所以在这篇文章里我将要告诉你为什么它可以让你整天都心情愉悦。</p>
+
+<p><img src="/images/tech/gitflow.png" title="Redis" alt="Redis" /></p>
+
+<p>安装好git-flow之后，你可以在当前目录里开始一个新的仓库或者把一个已经存在的仓库转换成新的分支结构：</p>
+
+<pre><code>$ git flow init
+</code></pre>
+
+<p>它会问你一组问题，但是你最好接受默认值：</p>
+
+<pre><code>No branches exist yet. Base branches must be created now.
+Branch name for production releases: [master] 
+Branch name for "next release" development: [develop] 
+How to name your supporting branch prefixes?
+
+Feature branches? [feature/] 
+Release branches? [release/] 
+Hotfix branches? [hotfix/] 
+Support branches? [support/] 
+Version tag prefix? []
+</code></pre>
+
+<p>在你回答这些问题之后，git flow会自动把你的默认分支设置为<em>develop</em>（或者任何你自己命名的），这是你将要开始工作的地方。</p>
+
+<p>现在，像之前一样简单得去使用Git，但是只在<em>develop</em>分支上开发一些小功能。如果你需要开发一个大一些的功能，那么就得以<em>develop</em>分支为基础创建一个特性分支（feature branch）。这里假设你想要添加一个登录页面：</p>
+
+<pre><code>$ git flow feature start login
+</code></pre>
+
+<p>这会以我们的<em>develop</em>分支为基础创建一个名叫<em>feature/login</em>的新分支，然后并切换到这个分支上。提交代码并且当你完成了登录页面上的工作之后，简单的完成它：</p>
+
+<pre><code>$ git flow feature finish login
+</code></pre>
+
+<p>这将会把<em>feature/login</em>合并回<em>develop</em>，并且删除特性分支。</p>
+
+<p>当你的特性完成的时候，简单地开始一个release分支 - 当然，也是基于<em>develop</em>分支 - 来提升版本号并且修复release之前的最后几个bug：</p>
+
+<pre><code>$ git flow release start v0.1.0
+</code></pre>
+
+<p>当你完成了一个release分支，它将会把你的修改合并到<em>master</em>和<em>develop</em>，所以你不用担心你的<em>master</em>会比<em>develop</em>提前。</p>
+
+<p>最后一件使git-flow如此厉害的事情是其处理hotfixes的能力。你开始和完成一个hotfix分支就像处理其他分支一样，但是这个分支是基于<em>master</em>的，所以当生产环境上出现bug之后你可以迅速的修复它并且使用<em>finish</em>把分支合并回<em>master</em>和<em>develop</em>。</p>
+
+<p>Awesome, right? Now, what are you waiting for?</p>
+
+<p>英文原文: <a href="http://jeffkreeftmeijer.com/2010/why-arent-you-using-git-flow/" title="why-arent-you-using-git-flow">http://jeffkreeftmeijer.com/2010/why-arent-you-using-git-flow/</a></p>
+
+	(完)
+
+	<div class="post-info">
+		23 Jun 2012  
+	
+		
+	
+		
+	</div>
+	
+	<!-- disqus start -->
+	<div id="disqus_thread"></div>
+	<script type="text/javascript">
+	    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+	    var disqus_shortname = 'jeremywei'; // required: replace example with your forum shortname
+
+	    /* * * DON'T EDIT BELOW THIS LINE * * */
+	    (function() {
+	        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+	        dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+	        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	    })();
+	</script>
+	<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+	<!-- disqus end -->
+
+	<!-- related start -->
+	<div id="related">
+	  <h2>相关内容</h2>
+	  <ul class="posts">
+	    
+	      <li><span>21 Jul 2013</span> &raquo; <a href="/viewports.html">两个viewport的故事（第一部分）</a></li>
+	    
+	      <li><span>14 Jul 2013</span> &raquo; <a href="/a-pixel-is-not.html">不是像素的像素不是像素</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/make-web-app-more-native.html">把你的网站改造成一个iOS Web App</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/cross-browser-inline-block.html">跨浏览器的Inline-Block</a></li>
+	    
+	      <li><span>30 Jun 2013</span> &raquo; <a href="/css-underscore-hack.html">The Underscore Hack</a></li>
+	    
+	  </ul>
+	</div>
+	<!-- related end -->
+</div>
+  
+<div class="footer"></div>
+<div class="power">  
+  Powered by <a href="http://github.com/" targe="_blank">Github</a> &nbsp;&amp;&amp;&nbsp; <a href="http://jekyllrb.com/" target="_blank">Jekyll</a> 
+</div>
+</div>
+
+<a href="http://github.com/jeremywei" target="_blank">
+	<img class="right-banner first" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub" />
+</a>
+
+<a href="http://www.phptherightway.com" target="_blank">
+    <img class="right-banner second" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/php-the-right-way-120x60.png" alt="PHP: The Right Way"/>
+</a>
+</body>
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-5179718-7']);
+  _gaq.push(['_setDomainName', 'weizhifeng.net']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</html>

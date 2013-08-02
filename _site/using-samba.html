@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <meta name="apple-mobile-web-app-capable" content="yes" />
+   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+   <!-- <link rel="apple-touch-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone.png" /> -->
+   <link rel="apple-touch-icon-precomposed" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-precomposed.png" />
+   <link rel="apple-touch-icon" sizes="72x72" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad.png" />
+   <link rel="apple-touch-icon" sizes="114x114" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-retina.png" />
+   <link rel="apple-touch-icon" sizes="144x144" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad-retina.png" />
+   
+   <title>Samba配置与使用</title>
+   <meta name="author" content="Jeremy Wei" />
+   <link href="http://feeds.feedburner.com/JeremyWei" rel="alternate" title="Jeremy Wei" type="application/atom+xml" />
+   <link rel="shortcut icon" type="image/x-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/favicon.ico">
+   
+   <!-- syntax highlighting CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/syntax.css?20130623" type="text/css" />
+   
+   <!-- Homepage CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/screen.css?20130721v1" type="text/css" media="screen, projection" />
+   <!-- <link rel="stylesheet" href="/css/screen.css?072122" type="text/css" media="screen, projection" /> -->
+   
+   <script type="text/javascript" charset="utf-8">
+   // Mobile Safari in standalone mode
+   if(("standalone" in window.navigator) && window.navigator.standalone){
+	   
+   	// If you want to prevent remote links in standalone web apps opening Mobile Safari, change 'remotes' to true
+   	var noddy, remotes = true;
+	
+   	document.addEventListener('click', function(event) {
+		
+   		noddy = event.target;
+		
+   		// Bubble up until we hit link or top HTML element. Warning: BODY element is not compulsory so better to stop on HTML
+   		while(noddy.nodeName !== "A" && noddy.nodeName !== "HTML") {
+   	        noddy = noddy.parentNode;
+   	    }
+		
+   		if('href' in noddy && noddy.href.indexOf('http') !== -1 && (noddy.href.indexOf(document.location.host) !== -1 || remotes))
+   		{
+   			event.preventDefault();
+   			document.location.href = noddy.href;
+   		}
+	
+   	},false);
+   }
+   </script>
+</head>
+<body>
+	
+<div class="site">
+  <pre class="nav margin-for-mobile">{"<a href='/tech.html'>文</a>", "<a href='/translate.html'>譯</a>", "<a href='/poem.html'>詩</a>", "<a href='/5000years.html'>國史</a>", "<a href='/resume.html'>己</a>"}</pre>
+  <br />
+  <div id="post">
+	<h1>Samba配置与使用</h1>
+	<div class="copyright">
+	作者: JeremyWei | 可以转载, 但必须以超链接形式标明文章原始出处和作者信息及版权声明<br />
+	网址: http://weizhifeng.net/using-samba.html
+	</div>
+
+	<h3>介绍</h3>
+
+<p><a href="http://www.samba.org/" title="samba">Samba</a>可以让我们在windows中访问linux系统中的文件，如果用来调试linux虚拟机中的代码会非常的方便。</p>
+
+<h3>安装</h3>
+
+<p>以下是CentOS中Samba的安装方式：</p>
+
+<pre><code>yum install samba
+/etc/init.d/samba start
+</code></pre>
+
+<p>添加用户到Samba中,这个用户就可以用来访问Samba中的文件：</p>
+
+<pre><code>groupadd sambagroup
+useradd -g sambagroup sambauser1
+passwd sambauser1 #shell 登录用
+smbpasswd -a sambauser1 #samba登录用
+smbpasswd sambauser1   #修改samba用户sambauser1的密码
+</code></pre>
+
+<h3>配置</h3>
+
+<p>Samba配置文件为<code>/etc/samba/smb.conf</code>用户验证访问模式：</p>
+
+<pre><code>[global]
+workgroup = Ubuntu
+netbios name = UbuntuServer
+server string = Linux Samba Server TestServer
+security = user
+encrypt passwords = yes
+smb passwd file = /etc/samba/smbpasswd
+display charset = cp936
+unix charset = cp936
+dos  charset = cp936
+
+[noshare]
+path = /home/sambauser1
+writeable = yes   
+browseable = yes
+create mask =  0664
+directory mask = 0775
+valid users = sambauser1 #允许访问的用户，多个以','分割
+</code></pre>
+
+<p>匿名访问方式：</p>
+
+<pre><code>[global]
+workgroup = Ubuntu
+netbios name = UbuntuServer
+server string = Linux Samba Server TestServer
+security = share
+display charset = cp936
+unix charset = cp936
+dos  charset = cp936
+
+[share]
+path = /share/smb
+writeable = yes
+browseable = yes
+create mask =  0664
+directory mask = 0775
+guest ok = yes #允许匿名访问
+public = yes
+</code></pre>
+
+<h3>问题</h3>
+
+<p>最近在配置samba，windows连接的时候出现如下问题：<strong>samba不允许一个用户使用一个以上用户名与一个服务器或共享资源的多重连接</strong>，google查询后，找到解决方法：</p>
+
+<pre><code>net use * /del /y
+</code></pre>
+
+<p> 事实上这个不是samba的限制，是Windows的限制。始终要用public＝yes的话，上面的方法都不能有效解决，因为：在打开存在public＝yes的samba服务器时，如果首先点击了有public＝yes的共享资源的时候，widows会用默认的用户名去连接服务器，一般就是windows的登录名（可以在服务器端查看到的），这时候，再去点击没有public＝yes的共享资源，由于使用了user级别，服务器就会要求验证，这时，之前的默认登录已经存在，就出现了楼主的故障了。即使注销连接后如果没有采用正确的顺序访问共享资源，还是会陷入这个泥潭中。因此，最好办法就是不用public＝yes，给公共帐号建立一个共用的账户并公示出来。这样处理，其实权限更清晰一些。</p>
+
+<h3>Selinux</h3>
+
+<p>在配置好samba后，有时候还会出现无法访问的情况，这种情况下需要关闭Selinux：</p>
+
+<p>修改 <code>/etc/selinux/config</code> 修改 <code>SELINUX=enforcing</code> 为 <code>SELINUX=disabled</code>，然后重启服务器。</p>
+
+<p>参考：</p>
+
+<p><a href="http://www.linuxsir.org/main/?q=node/158">http://www.linuxsir.org/main/?q=node/158</a>   <br/>
+<a href="http://blogold.chinaunix.net/u/19637/showart_491257.html">http://blogold.chinaunix.net/u/19637/showart_491257.html</a></p>
+
+	(完)
+
+	<div class="post-info">
+		26 Mar 2011  
+	
+		
+	
+		
+	</div>
+	
+	<!-- disqus start -->
+	<div id="disqus_thread"></div>
+	<script type="text/javascript">
+	    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+	    var disqus_shortname = 'jeremywei'; // required: replace example with your forum shortname
+
+	    /* * * DON'T EDIT BELOW THIS LINE * * */
+	    (function() {
+	        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+	        dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+	        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	    })();
+	</script>
+	<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+	<!-- disqus end -->
+
+	<!-- related start -->
+	<div id="related">
+	  <h2>相关内容</h2>
+	  <ul class="posts">
+	    
+	      <li><span>21 Jul 2013</span> &raquo; <a href="/viewports.html">两个viewport的故事（第一部分）</a></li>
+	    
+	      <li><span>14 Jul 2013</span> &raquo; <a href="/a-pixel-is-not.html">不是像素的像素不是像素</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/make-web-app-more-native.html">把你的网站改造成一个iOS Web App</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/cross-browser-inline-block.html">跨浏览器的Inline-Block</a></li>
+	    
+	      <li><span>30 Jun 2013</span> &raquo; <a href="/css-underscore-hack.html">The Underscore Hack</a></li>
+	    
+	  </ul>
+	</div>
+	<!-- related end -->
+</div>
+  
+<div class="footer"></div>
+<div class="power">  
+  Powered by <a href="http://github.com/" targe="_blank">Github</a> &nbsp;&amp;&amp;&nbsp; <a href="http://jekyllrb.com/" target="_blank">Jekyll</a> 
+</div>
+</div>
+
+<a href="http://github.com/jeremywei" target="_blank">
+	<img class="right-banner first" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub" />
+</a>
+
+<a href="http://www.phptherightway.com" target="_blank">
+    <img class="right-banner second" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/php-the-right-way-120x60.png" alt="PHP: The Right Way"/>
+</a>
+</body>
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-5179718-7']);
+  _gaq.push(['_setDomainName', 'weizhifeng.net']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</html>

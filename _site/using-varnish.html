@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <meta name="apple-mobile-web-app-capable" content="yes" />
+   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+   <!-- <link rel="apple-touch-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone.png" /> -->
+   <link rel="apple-touch-icon-precomposed" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-precomposed.png" />
+   <link rel="apple-touch-icon" sizes="72x72" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad.png" />
+   <link rel="apple-touch-icon" sizes="114x114" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-retina.png" />
+   <link rel="apple-touch-icon" sizes="144x144" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad-retina.png" />
+   
+   <title>Varnish安装与配置</title>
+   <meta name="author" content="Jeremy Wei" />
+   <link href="http://feeds.feedburner.com/JeremyWei" rel="alternate" title="Jeremy Wei" type="application/atom+xml" />
+   <link rel="shortcut icon" type="image/x-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/favicon.ico">
+   
+   <!-- syntax highlighting CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/syntax.css?20130623" type="text/css" />
+   
+   <!-- Homepage CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/screen.css?20130721v1" type="text/css" media="screen, projection" />
+   <!-- <link rel="stylesheet" href="/css/screen.css?072122" type="text/css" media="screen, projection" /> -->
+   
+   <script type="text/javascript" charset="utf-8">
+   // Mobile Safari in standalone mode
+   if(("standalone" in window.navigator) && window.navigator.standalone){
+	   
+   	// If you want to prevent remote links in standalone web apps opening Mobile Safari, change 'remotes' to true
+   	var noddy, remotes = true;
+	
+   	document.addEventListener('click', function(event) {
+		
+   		noddy = event.target;
+		
+   		// Bubble up until we hit link or top HTML element. Warning: BODY element is not compulsory so better to stop on HTML
+   		while(noddy.nodeName !== "A" && noddy.nodeName !== "HTML") {
+   	        noddy = noddy.parentNode;
+   	    }
+		
+   		if('href' in noddy && noddy.href.indexOf('http') !== -1 && (noddy.href.indexOf(document.location.host) !== -1 || remotes))
+   		{
+   			event.preventDefault();
+   			document.location.href = noddy.href;
+   		}
+	
+   	},false);
+   }
+   </script>
+</head>
+<body>
+	
+<div class="site">
+  <pre class="nav margin-for-mobile">{"<a href='/tech.html'>文</a>", "<a href='/translate.html'>譯</a>", "<a href='/poem.html'>詩</a>", "<a href='/5000years.html'>國史</a>", "<a href='/resume.html'>己</a>"}</pre>
+  <br />
+  <div id="post">
+	<h1>Varnish安装与配置</h1>
+	<div class="copyright">
+	作者: JeremyWei | 可以转载, 但必须以超链接形式标明文章原始出处和作者信息及版权声明<br />
+	网址: http://weizhifeng.net/using-varnish.html
+	</div>
+
+	<h3>介绍</h3>
+
+<p><a href="https://www.varnish-cache.org/" title="Varnish">Varnish</a>是一款高性能的开源HTTP加速器，挪威最大的在线报纸<a href="http://www.vg.no" title="Verdens Gang">Verdens Gang</a>使用3台Varnish代替了原来的12台Squid，性能居然比以前更好。Varnish 的作者Poul-Henning Kamp是FreeBSD的内核开发者之一，他认为现在的计算机比起1975年已经复杂许多。在1975年时，储存媒介只有两种：内存与硬盘。但现在计算机系统的内存除了主存外，还包括了cpu内的L1、L2，甚至有L3快取。硬盘上也有自己的快取装置，因此Squid cache自行处理物件替换的架构不可能得知这些情况而做到最佳化，但操作系统可以得知这些情况，所以这部份的工作应该交给操作系统处理，这就是Varnish cache设计架构。目前很多互联网公司在使用Varnish，其中包括<a href="http://www.facebook.com" title="非死不可">Facebook</a>。</p>
+
+<h3>特性</h3>
+
+<ul>
+<li><a href="http://www.varnish-cache.org/docs/2.1/reference/vcl.html" title="vcl">VCL</a>(Varnish Configuration Language)：区别于其他系统，Varnish采用了自身的配置语言来配置，非常容易上手，这些配置会被编译成二进制机器码，明显加快了执行速度。</li>
+<li><a href="http://www.varnish-cache.org/docs/2.1/tutorial/advanced_backend_servers.html#health-checks" title="health check">Health checks</a>：完善的健康检查机制。</li>
+<li><a href="http://www.varnish-cache.org/docs/2.1/tutorial/esi.html" title="ESI">ESI</a>(Edge Side Includes)：在HTML中嵌入动态脚本文件。</li>
+<li><a href="http://www.varnish-cache.org/docs/2.1/reference/vcl.html#directors" title="directors">Directors</a>：后端服务器的调度方式：random，round-robin，client，hash，DNS。</li>
+<li><a href="http://www.varnish-cache.org/docs/2.1/tutorial/purging.html" title="purging">Purging and banning</a>：强大的缓存清除功能，可以以正则表达式的形式清除缓存。</li>
+<li><a href="http://www.varnish-cache.org/docs/2.1/tutorial/logging.html" title="logging">Logging in Varnish</a>：Varnish的log不是记录在文件中的，而是记录在共享内存中。当日志大小达到分配的共享内存容量，覆盖掉旧的日志。以这种方式记录日志比文件的形式要快很多，并且不需要磁盘空间。</li>
+<li>丰富的管理程序：varnishadm，varnishtop，varnishhist，varnishstat以及varnishlog等。</li>
+</ul>
+
+
+<h3>环境</h3>
+
+<p>OS: CentOS 5.5 <br/>
+varnish: 2.1.5</p>
+
+<h3>安装</h3>
+
+<p>首先安装ncurses-devel，否则<code>varnishstat</code>，<code>varnishtop</code>都无法编译完成</p>
+
+<pre><code>$ yum install ncurses-devel
+</code></pre>
+
+<p>接下来安装varnish</p>
+
+<pre><code>$ wget http://repo.varnish-cache.org/source/varnish-2.1.5.tar.gz
+$ tar -zxvf varnish-2.1.5.tar.gz
+$ cd varnish-2.1.5
+$ ./configure --prefix=/usr/local/varnish-2.1.5
+$ make &amp;&amp; make install
+</code></pre>
+
+<p>启动</p>
+
+<pre><code>$ /usr/local/varnish2.1.5/sbin/varnishd -f \
+/usr/local/varnish2.1.5/etc/varnish/default.vcl \
+-T 127.0.0.1:2000 -a 0.0.0.0:80 -s file,/tmp,200M
+</code></pre>
+
+<p>其中<code>-f</code>用来指定配置文件，<code>-T</code>指定管理台的访问地址，<code>-a</code>指定Varnish监听地址，<code>-s</code>指定Varnish以文件方式来缓存资源，地址为/tmp，大小200MB。</p>
+
+<h3>配置</h3>
+
+<pre><code>#后端处理器b1
+backend b1{
+    .host = "192.168.2.110";
+    .port = "81";
+    .connect_timeout = 5s;
+    .first_byte_timeout= 5s;
+    .probe = {
+        #health check
+        .url = "/check.txt";
+        .interval = 5s;
+        .timeout = 5s;
+        .window = 5;
+        .threshold = 3;
+    }
+}
+
+#后端处理器b2
+backend b2{
+    .host = "192.168.2.109";
+    .port = "81";
+    .connect_timeout = 5s;
+    .first_byte_timeout = 5s;
+    .probe = {
+        #health check
+        .url = "/check.txt";
+        .interval = 5s;
+        .timeout = 5s;
+        .window = 5;
+        .threshold = 3;
+    }
+}
+
+#以轮询方式实现负载均衡
+director d1 round-robin {
+    {
+        .backend = b1;
+    }
+
+    {
+        .backend = b2;
+    }
+}
+
+#acl
+acl purge {
+    "localhost";
+    "192.168.0.64";
+}
+
+sub vcl_recv {
+     # 设置director
+     set req.backend = d1;
+
+     # 如果从后端返回的资源中含有Set-Cookie头的话，那么varnish不会进行缓存；
+     # 如果客户端发送了Cookie头的话，那么varnish会bypass（绕开）缓存，
+     # 直接发送到后端，并不会进行缓存，所以需要如下处理：
+    if ( !( req.url ~ ^/admin/) ) {
+        unset req.http.Cookie;
+    }
+
+    if (req.http.Cookie == "") {
+        remove req.http.Cookie;
+    }
+
+    if (req.restarts == 0) {
+        if (req.http.x-forwarded-for) {
+            set req.http.X-Forwarded-For =
+                req.http.X-Forwarded-For ", " client.ip;
+        } else {
+            set req.http.X-Forwarded-For = client.ip;
+        }
+     }
+
+     if (req.request != "GET" &amp;&amp;
+       req.request != "HEAD" &amp;&amp;
+       req.request != "PUT" &amp;&amp;
+       req.request != "POST" &amp;&amp;
+       req.request != "TRACE" &amp;&amp;
+       req.request != "OPTIONS" &amp;&amp;
+       req.request != "DELETE" &amp;&amp;
+       req.request != "PURGE") {
+
+         /* Non-RFC2616 or CONNECT which is weird. */
+         return (pipe);
+     }
+
+     # allow PURGE from localhost and 192.168.0...
+     if (req.request == "PURGE") {
+         if (!client.ip ~ purge) {
+             error 405 "Not allowed.";
+         }
+         return (lookup);
+     }
+
+     if (req.request != "GET" &amp;&amp; req.request != "HEAD" &amp;&amp; req.request != "PURGE") {
+         /* We only deal with GET and HEAD by default */
+         return (pass);
+     }
+
+     if (req.http.Authorization || req.http.Cookie) {
+         /* Not cacheable by default */
+         return (pass);
+     }
+     return (lookup);
+ }
+
+sub vcl_hit {
+     if (req.request == "PURGE") {
+        # Note that setting ttl to 0 is magical.
+        # the object is zapped from cache.
+        set obj.ttl = 0s;
+        error 200 "Purged.";
+
+     } else {
+        return (deliver);
+     }
+}
+
+sub vcl_miss {
+    if (req.request == "PURGE") {
+        error 404 "Not in cache.";
+    } else {
+        return (fetch);
+    }
+}
+
+sub vcl_fetch {
+     #设置TTL为1个小时
+     set beresp.ttl = 1h;
+     if (!beresp.cacheable) {
+         return (pass);
+     }
+
+     if (beresp.http.Set-Cookie) {
+         return (pass);
+     }
+
+     return (deliver);
+ }
+
+sub vcl_deliver {
+     return (deliver);
+}
+</code></pre>
+
+<h3>启动脚本</h3>
+
+<pre><code>$ wget -O varnishd https://raw.github.com/gist/3671408/3a51578bbd60a4cf8317bdc9508527b81eb23da5/varnishd
+$ cp varnishd /etc/init.d/varnishd
+$ chmod +x /etc/init.d/varnishd
+$ /etc/init.d/varnishd start
+</code></pre>
+
+<h3>Subroutine列表</h3>
+
+<ul>
+<li><p><strong>vcl_recv</strong>
+在请求开始时候被调用，在请求已经被接收到并且解析后调用。目的就是决定是否处理这个请求，怎么处理，使用哪个后端。vcl_recv以<code>return</code>结束，参数可以为如下关键字：  <br/>
+  <strong>error code</strong> [reason]：返回错误码给客户端，丢弃请求。 <br/>
+  <strong>pass</strong>：转换到pass模式。控制权最后会转移到<code>vcl_pass</code>。  <br/>
+  <strong>pipe</strong>：转换到pipe模式。控制权最后会转移到<code>vcl_pipe</code>。  <br/>
+  <strong>lookup</strong>：在缓存中寻找请求对象。控制权最后会转移到<code>vcl_hit</code>或者<code>vcl_miss</code>，决定于对象是否在缓存中。</p></li>
+<li><p><strong>vcl_pipe</strong>
+当进入pipe模式的时候被调用。在这个模式中，请求会被转移到后端，后续的数据不管是从客户端还是后端来的都会以不变的方式传送，直到连接关闭为止。vcl_pipe以<code>return</code>结束，参数可以为如下关键字：   <br/>
+<strong>error code</strong> [reason]：返回错误码给客户端，丢弃请求。 <br/>
+<strong>pipe</strong>：以pipe模式执行。</p></li>
+<li><p><strong>vcl_pass</strong>
+当进入pass模式的时候会被调用。在这个模式中，请求会被传送到后端，然后后端的响应会被传送回客户端，但是响应不会进入缓存中。接下来通过相同客户端连接发起的请求会以普通的方式来处理。vcl_pass以<code>return</code>结束，参数可以为如下关键字：  <br/>
+<strong>error code</strong> [reason]：返回错误码给客户端，丢弃请求。  <br/>
+<strong>pass</strong>：以pass模式执行。  <br/>
+<strong>restart</strong>：重新启动这个事务。增加了重启计数。如果重启的次数高于<code>max_restarts</code>，varnish会引起一个错误。</p></li>
+<li><p><strong>vcl_hash</strong>
+你如果把想把数据加入到hash中，那么调用hash_data()。vcl_hash以<code>return</code>结束，参数可以为如下关键字：   <br/>
+<strong>hash</strong>：执行hash逻辑。</p></li>
+<li><p><strong>vcl_hit</strong>
+如果请求的对象在缓存中被找到了，那么在缓存查找结束后被调用。vcl_hit以<code>return</code>结束，参数可以为如下关键字： <br/>
+<strong>deliver</strong>：deliver缓存对象到客户端。控制权最后会转移到<code>vcl_deliver</code>。 <br/>
+<strong>error code</strong> [reason]：返回错误码给客户端，丢弃请求。 <br/>
+<strong>pass</strong>：切换到pass模式。控制权最后会转移到<code>vcl_pass</code>。 <br/>
+<strong>restart</strong>：重新启动这个事务。增加了重启计数。如果重启的次数高于<code>max_restarts</code>，varnish会引起一个错误。</p></li>
+<li><p><strong>vcl_miss</strong>
+如果请求的对象在缓存中没有被找到，那么在缓存查找结束后被调用。目的是为了决定是否去后端获取这个请求对象，并且要选择哪个后端。vcl_miss以return结束，参数可以为如下关键字：    <br/>
+<strong>error code</strong> [reason]：返回错误码给客户端，丢弃请求。   <br/>
+<strong>pass</strong>：切换到pass模式。控制权最后会转移到<code>vcl_pass</code>。    <br/>
+<strong>fetch</strong>：去后端获取请求对象。控制权最后会转移到<code>vcl_fetch</code>。</p></li>
+<li><p><strong>vcl_fetch</strong>
+当一个对象被成功从后端获取的时候此方法会被调用。vcl_fetch以<code>return</code>结束，参数可以为如下关键字：   <br/>
+<strong>deliver</strong>：可能把对象放入缓存中，然后再deliver到客户端。控制权最后会转移到<code>vcl_deliver</code>。   <br/>
+<strong>error code</strong> [reason]：返回错误码给客户端，丢弃请求。    <br/>
+<strong>esi</strong>：以ESI形式来处理刚刚被获取到的对象。   <br/>
+<strong>pass</strong>：切换到pass模式。控制权最后会转移到<code>vcl_pass</code>。   <br/>
+<strong>restart</strong>：重新启动这个事务。增加了重启计数。如果重启的次数高于<code>max_restarts</code>，varnish会引起一个错误。</p></li>
+<li><p><strong>vcl_deliver</strong>当一个缓存的对象被deliver到客户端的时候，此方法会被调用。vcl_deliver以<code>return</code>结束，参数可以为如下关键字：     <br/>
+<strong>deliver</strong>：发送对象到客户端。   <br/>
+<strong>error code</strong> [reason]：返回错误码给客户端，丢弃请求。   <br/>
+<strong>restart</strong>：重新启动这个事务，增加重启计数。如果重启的次数高于<code>max_restarts</code>，varnish会引起一个错误。</p></li>
+<li><p><strong>vcl_error</strong>
+当遇见一个错误的时候会被调用，错误可能是跟后端有关系或者内部错误。vcl_error以<code>return</code>结束，参数可以为如下关键字：    <br/>
+<strong>deliver</strong>：发送对象到客户端。    <br/>
+<strong>restart</strong>：重新启动这个事务，增加重启计数。如果重启的次数高于<code>max_restarts</code>，varnish会引起一个错误。</p></li>
+</ul>
+
+
+<h3>重要变量</h3>
+
+<p>subroutine不带参数，一般通过全局变量来实现信息的传递。</p>
+
+<p>如下变量在<strong>backend</strong>中有效：</p>
+
+<ul>
+<li>.host：backend的主机名或者IP。</li>
+<li>.port：backend的端口。</li>
+</ul>
+
+
+<p>如下变量在<strong>处理一个请求</strong>（例如<code>vcl_recv</code>）的时候可用：</p>
+
+<ul>
+<li>client.ip：客户端IP地址。</li>
+<li>server.hostname：服务器的主机名。</li>
+<li>server.identity：服务器标示，当启动varnish的时候用<code>-i</code>参数来指定。如果varnish启动时候没有指定<code>-i</code>参数，那么server.identity会被设置为用<code>-n</code>参数所指定的实例名称。</li>
+<li>server.ip：服务器IP地址。</li>
+<li>server.port：服务器端口。</li>
+<li>req.request：请求类型（例如<code>GET</code>，<code>HEAD</code>）。</li>
+<li>req.url：请求的URL。</li>
+<li>req.proto：HTTP协议版本。</li>
+<li>req.backend：处理请求的后端服务器。</li>
+<li>req.backend.healthy：后端是否健康。health check需要在<code>backend</code>的<code>probe</code>中进行设置。</li>
+<li>req.http.header：相关的HTTP头。</li>
+<li>req.hash_always_miss：强迫对于本次请求的缓存查找结果为miss。如果设置为<code>true</code>，那么varnish将会忽略任何存在的缓存对象，一直从后端重新获取资源。</li>
+<li>req.hash_ignore_busy：在缓存查找时候忽略任何忙的对象。如果有两个服务器，彼此互相查找缓存内容，那么可以使用这个变量来避免潜在的死锁。</li>
+</ul>
+
+
+<p>如下变量在<strong>准备一个后端请求</strong>(比如在<code>cache miss</code>或者<code>pass</code>，<code>pipe</code>模式)的时候可用：</p>
+
+<ul>
+<li>bereq.request：请求的类型（比如<code>GET</code>，<code>HEAD</code>）。</li>
+<li>bereq.url：请求的URL。</li>
+<li>bereq.proto：与后端服务器交互的HTTP协议版本。</li>
+<li>bereq.http.header：相关的HTTP头。</li>
+<li>bereq.connect_timeout：与后端连接的超时时间。</li>
+<li>bereq.first_byte_timeout：从后端返回第一个字节所需等待的秒数，在<code>pipe</code>模式中不可用。</li>
+<li>bereq.between_bytes_timeout：从后端返回的每个字节之间的时间间隔，以秒计。在<code>pipe</code>模式中不可用。</li>
+</ul>
+
+
+<p>如下的变量在<strong>请求对象从后端返回之后，在其被放入缓存之前</strong>可用。换句话说，也就是在<code>vcl_fetch</code>中可用。</p>
+
+<ul>
+<li>beresp.proto：HTTP协议版本。</li>
+<li>beresp.status：后端返回的HTTP状态码（例如200,302等）。</li>
+<li>beresp.response：后端返回的状态内容（例如<code>OK</code>，<code>Found</code>）。</li>
+<li>beresp.cacheable：如果请求的结果是可以被缓存的，那么此变量为<code>true</code>。如果HTTP状态码为200, 203, 300, 301, 302, 404，410之一并且<code>pass</code>没有在<code>vcl_recv</code>中被调用，那么这个结果就是可以被缓存的。如果response的<code>TTL</code>和<code>grace time</code>都为0，那么<code>beresp.cacheable</code>将会为0。<code>beresp.cacheable</code>是可写的。</li>
+<li>beresp.ttl：缓存对象的生存时间，以秒为单位，这个变量是可写的。</li>
+</ul>
+
+
+<p>在对象<strong>已经存在于缓存中并被查询到</strong>的时候，一般在<code>vcl_hit</code>和<code>vcl_deliver</code>中，如下的变量（大部分是read-only）可用：</p>
+
+<ul>
+<li>obj.proto：与后端交互的HTTP版本协议。</li>
+<li>obj.status：后端返回的HTTP状态码。</li>
+<li>obj.response：后端返回的HTTP状态内容。</li>
+<li>obj.cacheable：如果对象的beresp.cacheable为<code>true</code>，那么此变量的值为<code>true</code>。除非你强制delivery，否则<code>obj.cacheable</code>一直为<code>true</code>。</li>
+<li>obj.ttl：缓存对象的生存时间，以秒为单位，这个变量是可写的。</li>
+<li>obj.lastuse：从现在到对象最近一次访问所间隔的时间，以秒为单位。</li>
+<li>obj.hits：对象被发送到客户端的次数，0表示缓存查询miss了。</li>
+</ul>
+
+
+<p>如下变量在<strong>决定对象hash key</strong>的时候可用：</p>
+
+<ul>
+<li>req.hash：hash key被用来关联一个缓存中的对象。在读写缓存的时候都会被用到。</li>
+</ul>
+
+
+<p>如下变量在<strong>准备把一个响应发送给客户端</strong>时候可用：</p>
+
+<ul>
+<li>resp.proto：响应使用的HTTP协议版本。</li>
+<li>resp.status：将要返回的HTTP状态码。</li>
+<li>resp.response：将要返回的HTTP状态内容。</li>
+<li>resp.http.header：相关的HTTP头。</li>
+</ul>
+
+
+	(完)
+
+	<div class="post-info">
+		19 Jun 2011  
+	
+		
+	
+		
+	</div>
+	
+	<!-- disqus start -->
+	<div id="disqus_thread"></div>
+	<script type="text/javascript">
+	    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+	    var disqus_shortname = 'jeremywei'; // required: replace example with your forum shortname
+
+	    /* * * DON'T EDIT BELOW THIS LINE * * */
+	    (function() {
+	        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+	        dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+	        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	    })();
+	</script>
+	<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+	<!-- disqus end -->
+
+	<!-- related start -->
+	<div id="related">
+	  <h2>相关内容</h2>
+	  <ul class="posts">
+	    
+	      <li><span>21 Jul 2013</span> &raquo; <a href="/viewports.html">两个viewport的故事（第一部分）</a></li>
+	    
+	      <li><span>14 Jul 2013</span> &raquo; <a href="/a-pixel-is-not.html">不是像素的像素不是像素</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/make-web-app-more-native.html">把你的网站改造成一个iOS Web App</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/cross-browser-inline-block.html">跨浏览器的Inline-Block</a></li>
+	    
+	      <li><span>30 Jun 2013</span> &raquo; <a href="/css-underscore-hack.html">The Underscore Hack</a></li>
+	    
+	  </ul>
+	</div>
+	<!-- related end -->
+</div>
+  
+<div class="footer"></div>
+<div class="power">  
+  Powered by <a href="http://github.com/" targe="_blank">Github</a> &nbsp;&amp;&amp;&nbsp; <a href="http://jekyllrb.com/" target="_blank">Jekyll</a> 
+</div>
+</div>
+
+<a href="http://github.com/jeremywei" target="_blank">
+	<img class="right-banner first" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub" />
+</a>
+
+<a href="http://www.phptherightway.com" target="_blank">
+    <img class="right-banner second" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/php-the-right-way-120x60.png" alt="PHP: The Right Way"/>
+</a>
+</body>
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-5179718-7']);
+  _gaq.push(['_setDomainName', 'weizhifeng.net']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</html>

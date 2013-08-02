@@ -1,0 +1,5 @@
+permalink: /:title.html
+markdown: rdiscount
+pygments: true
+redirects: yes
+cdn: s0-weizhifeng-net.b0.upaiyun.com

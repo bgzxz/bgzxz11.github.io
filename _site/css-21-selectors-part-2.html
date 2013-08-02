@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <meta name="apple-mobile-web-app-capable" content="yes" />
+   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+   <!-- <link rel="apple-touch-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone.png" /> -->
+   <link rel="apple-touch-icon-precomposed" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-precomposed.png" />
+   <link rel="apple-touch-icon" sizes="72x72" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad.png" />
+   <link rel="apple-touch-icon" sizes="114x114" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-retina.png" />
+   <link rel="apple-touch-icon" sizes="144x144" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad-retina.png" />
+   
+   <title>CSS 2.1选择器第二部分</title>
+   <meta name="author" content="Jeremy Wei" />
+   <link href="http://feeds.feedburner.com/JeremyWei" rel="alternate" title="Jeremy Wei" type="application/atom+xml" />
+   <link rel="shortcut icon" type="image/x-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/favicon.ico">
+   
+   <!-- syntax highlighting CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/syntax.css?20130623" type="text/css" />
+   
+   <!-- Homepage CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/screen.css?20130721v1" type="text/css" media="screen, projection" />
+   <!-- <link rel="stylesheet" href="/css/screen.css?072122" type="text/css" media="screen, projection" /> -->
+   
+   <script type="text/javascript" charset="utf-8">
+   // Mobile Safari in standalone mode
+   if(("standalone" in window.navigator) && window.navigator.standalone){
+	   
+   	// If you want to prevent remote links in standalone web apps opening Mobile Safari, change 'remotes' to true
+   	var noddy, remotes = true;
+	
+   	document.addEventListener('click', function(event) {
+		
+   		noddy = event.target;
+		
+   		// Bubble up until we hit link or top HTML element. Warning: BODY element is not compulsory so better to stop on HTML
+   		while(noddy.nodeName !== "A" && noddy.nodeName !== "HTML") {
+   	        noddy = noddy.parentNode;
+   	    }
+		
+   		if('href' in noddy && noddy.href.indexOf('http') !== -1 && (noddy.href.indexOf(document.location.host) !== -1 || remotes))
+   		{
+   			event.preventDefault();
+   			document.location.href = noddy.href;
+   		}
+	
+   	},false);
+   }
+   </script>
+</head>
+<body>
+	
+<div class="site">
+  <pre class="nav margin-for-mobile">{"<a href='/tech.html'>文</a>", "<a href='/translate.html'>譯</a>", "<a href='/poem.html'>詩</a>", "<a href='/5000years.html'>國史</a>", "<a href='/resume.html'>己</a>"}</pre>
+  <br />
+  <div id="post">
+	<h1>CSS 2.1选择器第二部分</h1>
+	<div class="copyright">
+	作者: JeremyWei | 可以转载, 但必须以超链接形式标明文章原始出处和作者信息及版权声明<br />
+	网址: http://weizhifeng.net/css-21-selectors-part-2.html
+	</div>
+
+	<h1>CSS 2.1 选择器，第二部分</h1>
+
+<p>这是介绍CSS2.1中可用选择器的三篇系列文章中的第二篇。<a href="/css-21-selectors-part-1.html">第一篇</a>更多的是关于基础的东西，比如类型选择器（type selectors），类选择器和id选择器，通配选择器（universal selector），和简单选择器。</p>
+
+<p>在这篇文章中我将会近距离的介绍并没有被所有的主流浏览器完全支持（译者注：目前主流浏览器对以下介绍的选择器已经都支持，详见<a href="http://www.quirksmode.org/css/selectors/">quirksmode</a>）的更高级的选择器。这些支持正一步一步的变好，所以是值得花时间学习这篇中介绍的选择器的。</p>
+
+<h2>组合因子（Combinators）</h2>
+
+<p>组合因子是用来分隔一个组合选择器（combined selector）中的两个或者多个简单选择器的。可用的组合因子是<code>空白</code>（任意数量的tab，空格或者其他空白字符），<code>&gt;</code>，和<code>+</code>。每个组合因子都是做什么的将会在接下来的几个部分进行介绍。</p>
+
+<h2>后代选择器（Descendant selectors）</h2>
+
+<p>一个后代选择器是由两个或者更多个的简单选择器以空格进行分隔所组成的。这个选择器会匹配第一个简单选择器所匹配元素的后代元素。举个例子，下面规则中的选择器将会匹配<code>div</code>元素后代中的所有<code>p</code>元素：</p>
+
+<pre><code>div p { color:#f00; }
+</code></pre>
+
+<p>组成后代选择器的每个选择器可以是任何形式的简单选择器。下面规则中的选择器匹配了所有拥有<code>info</code>类名的<code>p</code>元素，其又被一个<code>li</code>元素包含，<code>li</code>元素又被一个id为<code>myid</code>的<code>div</code>元素所包含。</p>
+
+<pre><code>div#myid li p.info { color:#f00; }
+</code></pre>
+
+<p>后代选择器允许你在不需要提供一个类名或者一个id的情况下去定位元素，这相应的帮你保持你标记的简洁。让我们假设你有一个以下面标记组成的导航列表：</p>
+
+<pre><code>&lt;ul id="nav"&gt;
+&lt;li&gt;&lt;a href="#"&gt;Link 1&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#"&gt;Link 2&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#"&gt;Link 3&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</code></pre>
+
+<p>为了只定位导航列表中的列表项目和链接，你可能使用以下CSS：</p>
+
+<pre><code>#nav li { display:inline; }
+#nav a { font-weight:bold; }
+</code></pre>
+
+<p>这些规则将不会匹配文档中的任何其他列表项目或者链接。把这个做法跟给每个列表和链接添加一个类名对比一下，你将会认识到当你使用后代选择器的时候你的标记能变得有多整洁。</p>
+
+<h2>子选择器</h2>
+
+<p>一个子选择器可以定位一个特定元素的直接子元素。一个子选择器由两个或者多个以大于号“>”分隔的选择器组成。父元素位于“>”的左侧，同时组合因子周围的空白是允许的。</p>
+
+<p>这个规则将会影响一个<code>div</code>元素的所有<code>strong</code>子元素：</p>
+
+<pre><code>div &gt; strong { color:#f00; }
+</code></pre>
+
+<p>只有是<code>div</code>元素直接后代的<code>strong</code>元素才能被这个规则所定位。如果在文档树中的<code>div</code>和<code>strong</code>元素之间存在任何其他元素，这个选择器将不会匹配。在下面的例子中，只有“Text one”会被以上规则所影响：</p>
+
+<pre><code>&lt;div&gt;
+&lt;strong&gt;Text one&lt;/strong&gt;
+&lt;p&gt;&lt;strong&gt;Text two&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+</code></pre>
+
+<h2>相邻兄弟选择器</h2>
+
+<p>一个相邻兄弟选择器是由两个以加号“＋”分隔的简单选择器所组成。相邻兄弟之间的组合因子周围的空白是被允许的。这个选择器会匹配第一个元素的紧接着的兄弟元素。这些元素必须有同样的父元素，并且第一个元素必须直接位于第二个元素之前：</p>
+
+<pre><code>p + p { color:#f00; }
+</code></pre>
+
+<p>如果应用在以下例子中，上面的规则将会只影响“Paragraph two”：</p>
+
+<pre><code>&lt;div&gt;
+&lt;p&gt;Paragraph one&lt;/p&gt;
+&lt;p&gt;Paragraph two&lt;/p&gt;
+&lt;/div&gt;
+</code></pre>
+
+<h2>分组</h2>
+
+<p>我决定在这个时候提一下分组，因为我发现当人们在学习CSS的时候常犯的一个错误是和对组合选择器进行分组相关的。</p>
+
+<p>为了能够把相同的规则应用在一些不同选择器所匹配的元素上，你可以把它们分到一个以逗号分隔的列表组中，而不是为每个选择器都重复声明一遍。常犯的错误是没有列出完整的选择器。假设你有如下的标记：</p>
+
+<pre><code>&lt;div id="news"&gt;
+&lt;h3&gt;News&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Item 1&lt;/li&gt;
+&lt;li&gt;Item 2&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</code></pre>
+
+<p>现在，假设你想对第三级标题（h3）和无序列表（ul）应用同样长的margin，但是只有当它们位于<code>id</code>为“news”的<code>div</code>元素之中的时候。这是错误的方法：</p>
+
+<pre><code>div#news h3, ul {
+    margin:0 2em;
+}
+</code></pre>
+
+<p>这将会对<code>div#news</code>中的<code>h3</code>和<code>ul</code>元素都产生影响。问题是它将会把<strong>文档中所有</strong>的<code>ul</code>元素做为目标元素，而不仅仅是<code>div#news</code>中的。</p>
+
+<p>这是这个例子中对选择器进行分组的正确方法：</p>
+
+<pre><code>div#news h3,
+div#news ul {
+    margin:0 2em;
+}
+</code></pre>
+
+<p>所以，当对选择器进行分组的时候，记住要对每个选择器进行完整指定。</p>
+
+<h2>属性选择器</h2>
+
+<p>属性选择器是基于属性存在与否或者属性的值来进行元素匹配的。一个属性选择器有四种方法进行匹配：</p>
+
+<p>[att]
+匹配拥有一个<code>att</code>属性的元素，不管属性值是什么。</p>
+
+<p>[att=val]
+匹配拥有一个值为“val”的<code>att</code>属性的元素。</p>
+
+<p>[att~=val]
+匹配其<code>att</code>属性值是一个以空格分隔的列表，并且列表中包含“val”值的元素。在这个情况下“val”不能包含空格。</p>
+
+<p>[att|=val]
+匹配<code>att</code>属性值是一个以“val”开始的以中划线（-）分隔的列表的元素。这个选择器主要用来匹配<code>lang</code>属性（XHTML中的xml:lang）指定的语言子码，比如“en”，“en-us”，“en-gb”，等等。</p>
+
+<p>看一些例子。下面规则中的选择器匹配了所有拥有<code>title</code>属性的<code>p</code>元素，而不管属性值是什么：</p>
+
+<pre><code>p[title] { color:#f00; }
+</code></pre>
+
+<p>在下面的例子中，选择器匹配了<code>class</code>属性值为<code>error</code>的所有<code>div</code>元素：</p>
+
+<pre><code>div[class=error] { color:#f00; }
+</code></pre>
+
+<p>为了匹配所有<code>headers</code>属性值包含“col1”的<code>td</code>元素，下面的选择器可以被使用：</p>
+
+<pre><code>td[headers~=col1] { color:#f00; }
+</code></pre>
+
+<p>最后，下面例子中的选择器会匹配所有<code>lang</code>属性以<code>en</code>开始的<code>p</code>元素：</p>
+
+<pre><code>p[lang|=en] { color:#f00; }
+</code></pre>
+
+<p>多属性选择器可以在同样的选择器中使用。这使得匹配相同元素的一些不同属性成为可能。下面的规则将会应用到所有<code>class</code>属性值为“quote”，并且拥有一个<code>cite</code>属性（不管其值为什么）的<code>blockquote</code>元素：</p>
+
+<pre><code>blockquote[class=quote][cite] { color:#f00; }
+</code></pre>
+
+<h2>待续</h2>
+
+<p>到了第二篇文章的结尾处了。在<a href="/css-21-selectors-part-3.html">第三篇</a>文章中，即这个系列最后的部分，我将会介绍伪类和伪元素选择器。当你在等第三篇的时候，你可以重新看一下第一篇文章。复习对学习是有益的。</p>
+
+<p>原文：<a href="http://www.456bereastreet.com/archive/200510/css_21_selectors_part_2/">http://www.456bereastreet.com/archive/200510/css_21_selectors_part_2/</a></p>
+
+	(完)
+
+	<div class="post-info">
+		23 Jun 2013  
+	
+		
+	
+		
+	</div>
+	
+	<!-- disqus start -->
+	<div id="disqus_thread"></div>
+	<script type="text/javascript">
+	    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+	    var disqus_shortname = 'jeremywei'; // required: replace example with your forum shortname
+
+	    /* * * DON'T EDIT BELOW THIS LINE * * */
+	    (function() {
+	        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+	        dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+	        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	    })();
+	</script>
+	<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+	<!-- disqus end -->
+
+	<!-- related start -->
+	<div id="related">
+	  <h2>相关内容</h2>
+	  <ul class="posts">
+	    
+	      <li><span>21 Jul 2013</span> &raquo; <a href="/viewports.html">两个viewport的故事（第一部分）</a></li>
+	    
+	      <li><span>14 Jul 2013</span> &raquo; <a href="/a-pixel-is-not.html">不是像素的像素不是像素</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/make-web-app-more-native.html">把你的网站改造成一个iOS Web App</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/cross-browser-inline-block.html">跨浏览器的Inline-Block</a></li>
+	    
+	      <li><span>30 Jun 2013</span> &raquo; <a href="/css-underscore-hack.html">The Underscore Hack</a></li>
+	    
+	  </ul>
+	</div>
+	<!-- related end -->
+</div>
+  
+<div class="footer"></div>
+<div class="power">  
+  Powered by <a href="http://github.com/" targe="_blank">Github</a> &nbsp;&amp;&amp;&nbsp; <a href="http://jekyllrb.com/" target="_blank">Jekyll</a> 
+</div>
+</div>
+
+<a href="http://github.com/jeremywei" target="_blank">
+	<img class="right-banner first" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub" />
+</a>
+
+<a href="http://www.phptherightway.com" target="_blank">
+    <img class="right-banner second" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/php-the-right-way-120x60.png" alt="PHP: The Right Way"/>
+</a>
+</body>
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-5179718-7']);
+  _gaq.push(['_setDomainName', 'weizhifeng.net']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</html>

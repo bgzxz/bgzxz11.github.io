@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <meta name="apple-mobile-web-app-capable" content="yes" />
+   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+   <!-- <link rel="apple-touch-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone.png" /> -->
+   <link rel="apple-touch-icon-precomposed" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-precomposed.png" />
+   <link rel="apple-touch-icon" sizes="72x72" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad.png" />
+   <link rel="apple-touch-icon" sizes="114x114" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-iphone-retina.png" />
+   <link rel="apple-touch-icon" sizes="144x144" href="http://s0-weizhifeng-net.b0.upaiyun.com/touch-icon-ipad-retina.png" />
+   
+   <title>PHP扩展编写第二步：参数，数组，以及ZVAL「续」</title>
+   <meta name="author" content="Jeremy Wei" />
+   <link href="http://feeds.feedburner.com/JeremyWei" rel="alternate" title="Jeremy Wei" type="application/atom+xml" />
+   <link rel="shortcut icon" type="image/x-icon" href="http://s0-weizhifeng-net.b0.upaiyun.com/favicon.ico">
+   
+   <!-- syntax highlighting CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/syntax.css?20130623" type="text/css" />
+   
+   <!-- Homepage CSS -->
+   <link rel="stylesheet" href="http://s0-weizhifeng-net.b0.upaiyun.com/css/screen.css?20130721v1" type="text/css" media="screen, projection" />
+   <!-- <link rel="stylesheet" href="/css/screen.css?072122" type="text/css" media="screen, projection" /> -->
+   
+   <script type="text/javascript" charset="utf-8">
+   // Mobile Safari in standalone mode
+   if(("standalone" in window.navigator) && window.navigator.standalone){
+	   
+   	// If you want to prevent remote links in standalone web apps opening Mobile Safari, change 'remotes' to true
+   	var noddy, remotes = true;
+	
+   	document.addEventListener('click', function(event) {
+		
+   		noddy = event.target;
+		
+   		// Bubble up until we hit link or top HTML element. Warning: BODY element is not compulsory so better to stop on HTML
+   		while(noddy.nodeName !== "A" && noddy.nodeName !== "HTML") {
+   	        noddy = noddy.parentNode;
+   	    }
+		
+   		if('href' in noddy && noddy.href.indexOf('http') !== -1 && (noddy.href.indexOf(document.location.host) !== -1 || remotes))
+   		{
+   			event.preventDefault();
+   			document.location.href = noddy.href;
+   		}
+	
+   	},false);
+   }
+   </script>
+</head>
+<body>
+	
+<div class="site">
+  <pre class="nav margin-for-mobile">{"<a href='/tech.html'>文</a>", "<a href='/translate.html'>譯</a>", "<a href='/poem.html'>詩</a>", "<a href='/5000years.html'>國史</a>", "<a href='/resume.html'>己</a>"}</pre>
+  <br />
+  <div id="post">
+	<h1>PHP扩展编写第二步：参数，数组，以及ZVAL「续」</h1>
+	<div class="copyright">
+	作者: JeremyWei | 可以转载, 但必须以超链接形式标明文章原始出处和作者信息及版权声明<br />
+	网址: http://weizhifeng.net/write-php-extension-part2-2.html
+	</div>
+
+	<h3>拷贝 VS 引用</h3>
+
+<p>这有两个方法来引用一个<code>zval</code>。第一种，上面介绍过的，叫做<strong>copy-on-write referencing</strong>。第二种，叫做<strong>full referencing</strong>，就是用户空间脚本编写者非常熟悉的「引用」关系，当写出如下代码：<code>$a = &amp;$b;</code>的时候就会发生。
+在一个zval中，这两种类型通过成员<code>is_ref</code>区分开来，当<code>is_ref</code>为0的时候是拷贝引用（copy references），非0的时候就是完全引用（full references）。注意一个<code>zval</code>不可能既是拷贝引用，又是完全引用。所以如果一个变量刚开始<code>is_ref</code>值非0，然后作为一个拷贝被赋给了一个新变量，那么肯定会执行一个完全拷贝。考虑下面的用户空间代码：</p>
+
+<pre><code>&lt;?php
+    $a = 1;
+    $b = &amp;$a;
+    $c = $a;
+?&gt;
+</code></pre>
+
+<p>在这段代码中，为$a变量创建了一个<code>zval</code>，初始化<code>is_ref</code>为0，<code>refcount</code>为1。当<code>$a</code>以引用的方式赋给了<code>$b</code>，其<code>is_ref</code>变成了1，然后<code>refcount</code>增加到2。当把$a赋给$c的时候，Zend Engine不能简单的把<code>refcount</code>增加到3，因为<code>$c</code>将被看做是<code>$a</code>的完全引用。关闭<code>is_ref</code>也不会起作用，因为如果这样做的话<code>$b</code>就是<code>$a</code>的一个拷贝了，而不是一个引用了。所以这个时候一个新的<code>zval</code>被分配了，然后通过<code>zval_copy_ctor()</code>来把原始的值拷贝进来。原始的zval现在是<code>is_ref==1</code>，<code>refcount==2</code>，而新的<code>zval</code>中<code>is_ref=0</code>，<code>refcount=1</code>。现在让我们稍微把代码顺序调整一下再看：</p>
+
+<pre><code>&lt;?php
+    $a = 1;
+    $c = $a;
+    $b = &amp;$a;
+?&gt;
+</code></pre>
+
+<p>最终的结果是一样的，<code>$b</code>是<code>$a</code>的完全引用，<code>$c</code>是<code>$a</code>的一个拷贝。这次，内部的行为稍微有些不同。像之前一样，在开始的时候为<code>$a</code>创建了一个新的<code>zval</code>，然后设置<code>is_ref==0</code>，<code>refcount=1</code>。之后，<code>$c = $a;</code>这个语句把上面那个相同的<code>zval</code>赋给<code>$c</code>变量，同时增加<code>refcount</code>到2，<code>is_ref</code>仍然是0。当Zend Engine遇到<code>$b = &amp;amp;$a;</code>的时候，它只是想要设置is_ref为1，但是不能这么做因为这么做会影响<code>$c</code>。替代的做法是它创建一个新的<code>zval</code>，通过zval_copy_ctor()来把原始的内容拷贝进来，然后对原始<code>zval</code>的<code>refcount</code>减一从而来指明$a不在使用那个<code>zval</code>了。它把新<code>zval</code>的<code>is_ref</code>设置为1，<code>refcount</code>设置为2，然后更新<code>$a</code>和<code>$b</code>变量，让其引用这个<code>zval</code>。</p>
+
+<h3>完整性检查</h3>
+
+<p>像之前一样，我们三个主要文件中的完整代码已经列在下面了：</p>
+
+<h3>config.m4</h3>
+
+<pre><code>PHP_ARG_ENABLE(hello, [whether to enable Hello World support],
+[ --enable-hello   Enable Hello World support])
+
+if test "$PHP_HELLO" = "yes"; then
+  AC_DEFINE(HAVE_HELLO, 1, [Whether you have Hello World])
+  PHP_NEW_EXTENSION(hello, hello.c, $ext_shared)
+fi
+</code></pre>
+
+<h3>php_hello.h</h3>
+
+<pre><code>#ifndef PHP_HELLO_H
+#define PHP_HELLO_H 1
+
+#ifdef ZTS
+#include "TSRM.h"
+#endif
+
+ZEND_BEGIN_MODULE_GLOBALS(hello)
+    long counter;
+    zend_bool direction;
+ZEND_END_MODULE_GLOBALS(hello)
+
+#ifdef ZTS
+#define HELLO_G(v) TSRMG(hello_globals_id, zend_hello_globals *, v)
+#else
+
+#define HELLO_G(v) (hello_globals.v)
+
+#endif
+
+#define PHP_HELLO_WORLD_VERSION "1.0"
+
+#define PHP_HELLO_WORLD_EXTNAME "hello"
+
+PHP_MINIT_FUNCTION(hello);
+PHP_MSHUTDOWN_FUNCTION(hello);
+PHP_RINIT_FUNCTION(hello);
+
+PHP_FUNCTION(hello_world);
+PHP_FUNCTION(hello_long);
+PHP_FUNCTION(hello_double);
+
+PHP_FUNCTION(hello_bool);
+PHP_FUNCTION(hello_null);
+PHP_FUNCTION(hello_greetme);
+
+PHP_FUNCTION(hello_add);
+PHP_FUNCTION(hello_dump);
+PHP_FUNCTION(hello_array);
+
+PHP_FUNCTION(hello_array_strings);
+PHP_FUNCTION(hello_array_walk);
+PHP_FUNCTION(hello_array_value);
+PHP_FUNCTION(hello_get_global_var);
+PHP_FUNCTION(hello_set_local_var);
+
+extern zend_module_entry hello_module_entry;
+
+#define phpext_hello_ptr &amp;hello_module_entry
+
+#endif
+</code></pre>
+
+<h3>hello.c</h3>
+
+<pre><code>#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+
+#include "php.h"
+#include "php_ini.h"
+#include "php_hello.h"
+
+ZEND_DECLARE_MODULE_GLOBALS(hello)
+
+static function_entry hello_functions[] = {
+    PHP_FE(hello_world, NULL)
+    PHP_FE(hello_long, NULL)
+    PHP_FE(hello_double, NULL)
+    PHP_FE(hello_bool, NULL)
+    PHP_FE(hello_null, NULL)
+    PHP_FE(hello_greetme, NULL)
+    PHP_FE(hello_add, NULL)
+    PHP_FE(hello_dump, NULL)
+    PHP_FE(hello_array, NULL)
+    PHP_FE(hello_array_strings, NULL)
+    PHP_FE(hello_array_walk, NULL)
+    PHP_FE(hello_array_value, NULL)
+    PHP_FE(hello_get_global_var, NULL)
+    PHP_FE(hello_set_local_var, NULL)
+    {NULL, NULL, NULL}
+};
+
+zend_module_entry hello_module_entry = {
+
+#if ZEND_MODULE_API_NO &gt;= 20010901
+    STANDARD_MODULE_HEADER,
+#endif
+
+    PHP_HELLO_WORLD_EXTNAME,
+    hello_functions,
+    PHP_MINIT(hello),
+    PHP_MSHUTDOWN(hello),
+    PHP_RINIT(hello),
+    NULL,
+    NULL,
+#if ZEND_MODULE_API_NO &gt;= 20010901
+    PHP_HELLO_WORLD_VERSION,
+#endif
+    STANDARD_MODULE_PROPERTIES
+
+};
+
+#ifdef COMPILE_DL_HELLO
+    ZEND_GET_MODULE(hello)
+#endif
+
+PHP_INI_BEGIN()
+    PHP_INI_ENTRY("hello.greeting", "Hello World", PHP_INI_ALL, NULL)
+    STD_PHP_INI_ENTRY("hello.direction", "1", PHP_INI_ALL, OnUpdateBool, direction, zend_hello_globals, hello_globals)
+PHP_INI_END()
+
+static void php_hello_init_globals(zend_hello_globals *hello_globals)
+{
+    hello_globals-&gt;direction = 1;
+}
+
+PHP_RINIT_FUNCTION(hello)
+{
+    HELLO_G(counter) = 0;
+    return SUCCESS;
+}
+
+PHP_MINIT_FUNCTION(hello)
+{
+    ZEND_INIT_MODULE_GLOBALS(hello, php_hello_init_globals, NULL);
+    REGISTER_INI_ENTRIES();
+    return SUCCESS;
+}
+
+PHP_MSHUTDOWN_FUNCTION(hello)
+{
+    UNREGISTER_INI_ENTRIES();
+    return SUCCESS;
+}
+
+PHP_FUNCTION(hello_world)
+{
+    RETURN_STRING("Hello World", 1);
+}
+
+PHP_FUNCTION(hello_long)
+{
+    if (HELLO_G(direction)) {
+        HELLO_G(counter)++;
+    } else {
+        HELLO_G(counter)--;
+    }
+
+    RETURN_LONG(HELLO_G(counter));
+}
+
+PHP_FUNCTION(hello_double)
+{
+    RETURN_DOUBLE(3.1415926535);
+}
+
+PHP_FUNCTION(hello_bool)
+{
+    RETURN_BOOL(1);
+}
+
+PHP_FUNCTION(hello_null)
+{
+    RETURN_NULL();
+}
+
+PHP_FUNCTION(hello_greetme)
+{
+    zval *zname;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &amp;zname) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    convert_to_string(zname);
+    php_printf("Hello ");
+    PHPWRITE(Z_STRVAL_P(zname), Z_STRLEN_P(zname));
+    php_printf(" ");
+
+    RETURN_TRUE;
+}
+
+PHP_FUNCTION(hello_add)
+{
+    long a;
+    double b;
+    zend_bool return_long = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ld|b", &amp;a, &amp;b, &amp;return_long) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    if (return_long) {
+        RETURN_LONG(a + b);
+    } else {
+        RETURN_DOUBLE(a + b);
+    }
+}
+
+PHP_FUNCTION(hello_dump)
+{
+    zval *uservar;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &amp;uservar) == FAILURE) {
+    RETURN_NULL();
+    }
+
+    switch (Z_TYPE_P(uservar)) {
+
+    case IS_NULL:
+        php_printf("NULL ");
+        break;
+
+    case IS_BOOL:
+        php_printf("Boolean: %s ", Z_LVAL_P(uservar) ? "TRUE" : "FALSE");
+        break;
+
+    case IS_LONG:
+        php_printf("Long: %ld ", Z_LVAL_P(uservar));
+        break;
+
+    case IS_DOUBLE:
+        php_printf("Double: %f ", Z_DVAL_P(uservar));
+        break;
+
+    case IS_STRING:
+        php_printf("String: ");
+        PHPWRITE(Z_STRVAL_P(uservar), Z_STRLEN_P(uservar));
+        php_printf(" ");
+        break;
+
+    case IS_RESOURCE:
+        php_printf("Resource ");
+        break;
+
+    case IS_ARRAY:
+        php_printf("Array ");
+        break;
+
+    case IS_OBJECT:
+        php_printf("Object ");
+        break;
+
+    default:
+        php_printf("Unknown ");
+
+    }
+
+    RETURN_TRUE;
+
+}
+
+PHP_FUNCTION(hello_array)
+{
+    char *mystr;
+    zval *mysubarray;
+    array_init(return_value);
+    add_index_long(return_value, 42, 123);
+    add_next_index_string(return_value, "I should now be found at index 43", 1);
+    add_next_index_stringl(return_value, "I'm at 44!", 10, 1);
+
+    mystr = estrdup("Forty Five");
+    add_next_index_string(return_value, mystr, 0);
+    add_assoc_double(return_value, "pi", 3.1415926535);
+
+    ALLOC_INIT_ZVAL(mysubarray);
+    array_init(mysubarray);
+    add_next_index_string(mysubarray, "hello", 1);
+    php_printf("mysubarray-&gt;refcount = %d ", mysubarray-&gt;refcount);
+    mysubarray-&gt;refcount = 2;
+    php_printf("mysubarray-&gt;refcount = %d ", mysubarray-&gt;refcount);
+    add_assoc_zval(return_value, "subarray", mysubarray);
+    php_printf("mysubarray-&gt;refcount = %d ", mysubarray-&gt;refcount);
+
+}
+
+PHP_FUNCTION(hello_array_strings)
+{
+    zval *arr, **data;
+    HashTable *arr_hash;
+    HashPosition pointer;
+    int array_count;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &amp;arr) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    arr_hash = Z_ARRVAL_P(arr);
+    array_count = zend_hash_num_elements(arr_hash);
+    php_printf("The array passed contains %d elements ", array_count);
+
+    for(zend_hash_internal_pointer_reset_ex(arr_hash, &amp;pointer); zend_hash_get_current_data_ex(arr_hash, (void**) &amp;data, &amp;pointer) == SUCCESS; zend_hash_move_forward_ex(arr_hash, &amp;pointer)) {
+
+        zval temp;
+        char *key;
+        int key_len;
+        long index;
+
+        if (zend_hash_get_current_key_ex(arr_hash, &amp;key, &amp;key_len, &amp;index, 0, &amp;pointer) == HASH_KEY_IS_STRING) {
+            PHPWRITE(key, key_len);
+        } else {
+            php_printf("%ld", index);
+        }
+
+        php_printf(" =&gt; ");
+
+        temp = **data;
+        zval_copy_ctor(&amp;temp);
+        convert_to_string(&amp;temp);
+        PHPWRITE(Z_STRVAL(temp), Z_STRLEN(temp));
+        php_printf(" ");
+        zval_dtor(&amp;temp);
+    }
+
+    RETURN_TRUE;
+}
+
+static int php_hello_array_walk(zval **element TSRMLS_DC)
+{
+    zval temp;
+
+    temp = **element;
+    zval_copy_ctor(&amp;temp);
+    convert_to_string(&amp;temp);
+    PHPWRITE(Z_STRVAL(temp), Z_STRLEN(temp));
+    php_printf(" ");
+    zval_dtor(&amp;temp);
+    return ZEND_HASH_APPLY_KEEP;
+}
+
+static int php_hello_array_walk_arg(zval **element, char *greeting TSRMLS_DC)
+{
+    php_printf("%s", greeting);
+    php_hello_array_walk(element TSRMLS_CC);
+    return ZEND_HASH_APPLY_KEEP;
+}
+
+static int php_hello_array_walk_args(zval **element, int num_args, var_list args, zend_hash_key *hash_key)
+{
+    char *prefix = va_arg(args, char*);
+    char *suffix = va_arg(args, char*);
+    TSRMLS_FETCH();
+
+    php_printf("%s", prefix);
+    php_hello_array_walk(element TSRMLS_CC);
+    php_printf("%s ", suffix);
+
+    return ZEND_HASH_APPLY_KEEP;
+}
+
+PHP_FUNCTION(hello_array_walk)
+{
+    zval *zarray;
+    int print_newline = 1;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &amp;zarray) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    zend_hash_apply(Z_ARRVAL_P(zarray), (apply_func_t)php_hello_array_walk TSRMLS_CC);
+    zend_hash_internal_pointer_reset(Z_ARRVAL_P(zarray));
+    zend_hash_apply_with_argument(Z_ARRVAL_P(zarray), (apply_func_arg_t)php_hello_array_walk_arg, "Hello " TSRMLS_CC);
+    zend_hash_apply_with_arguments(Z_ARRVAL_P(zarray), (apply_func_args_t)php_hello_array_walk_args, 2, "Hello ", "Welcome to my extension!");
+
+    RETURN_TRUE;
+}
+
+PHP_FUNCTION(hello_array_value)
+{
+    zval *zarray, *zoffset, **zvalue;
+    long index = 0;
+    char *key = NULL;
+    int key_len = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "az", &amp;zarray, &amp;zoffset) == FAILURE) {
+    RETURN_NULL();
+    }
+
+    switch (Z_TYPE_P(zoffset)) {
+
+    case IS_NULL:
+
+        index = 0;
+        break;
+
+    case IS_DOUBLE:
+
+        index = (long)Z_DVAL_P(zoffset);
+        break;
+
+    case IS_BOOL:
+
+    case IS_LONG:
+
+    case IS_RESOURCE:
+
+        index = Z_LVAL_P(zoffset);
+        break;
+
+    case IS_STRING:
+
+        key = Z_STRVAL_P(zoffset);
+        key_len = Z_STRLEN_P(zoffset);
+        break;
+
+    case IS_ARRAY:
+
+        key = "Array";
+        key_len = sizeof("Array") - 1;
+        break;
+
+    case IS_OBJECT:
+
+        key = "Object";
+        key_len = sizeof("Object") - 1;
+        break;
+
+    default:
+
+        key = "Unknown";
+        key_len = sizeof("Unknown") - 1;
+    }
+
+    if (key &amp;&amp; zend_hash_find(Z_ARRVAL_P(zarray), key, key_len + 1, (void**)&amp;zvalue) == FAILURE) {
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Undefined index: %s", key);
+        RETURN_NULL();
+
+    } else if (!key &amp;&amp; zend_hash_index_find(Z_ARRVAL_P(zarray), index, (void**)&amp;zvalue) == FAILURE) {
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Undefined index: %ld", index);
+        RETURN_NULL();
+    }
+
+    *return_value = **zvalue;
+    zval_copy_ctor(return_value);
+}
+
+PHP_FUNCTION(hello_get_global_var)
+{
+    char *varname;
+    int varname_len;
+    zval **varvalue;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &amp;varname, &amp;varname_len) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    if (zend_hash_find(&amp;EG(symbol_table), varname, varname_len + 1, (void**)&amp;varvalue) == FAILURE) {
+        php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Undefined variable: %s", varname);
+        RETURN_NULL();
+    }
+
+    *return_value = **varvalue;
+    zval_copy_ctor(return_value);
+}
+
+PHP_FUNCTION(hello_set_local_var)
+{
+    zval *newvar;
+    char *varname;
+    int varname_len;
+    zval *value;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &amp;varname, &amp;varname_len, &amp;value) == FAILURE) {
+        RETURN_NULL();
+    }
+
+    ALLOC_INIT_ZVAL(newvar);
+    *newvar = *value;
+    zval_copy_ctor(newvar);
+
+    zend_hash_add(EG(active_symbol_table), varname, varname_len + 1, &amp;newvar, sizeof(zval*), NULL);
+    RETURN_TRUE;
+
+}
+</code></pre>
+
+<p>Gist:</p>
+
+<ul>
+<li>config.m4:    <a href="https://gist.github.com/2843439">https://gist.github.com/2843439</a></li>
+<li>php_hello.h: <a href="https://gist.github.com/2843449">https://gist.github.com/2843449</a></li>
+<li>hello.c:      <a href="https://gist.github.com/2843458">https://gist.github.com/2843458</a></li>
+</ul>
+
+
+<p>下一步是什么？</p>
+
+<p>在这个扩展编写系列教程的第二部分中，你学到了如何接收函数参数，你创建和使用了数组，然后，最重要的，你看了<code>zval</code>的内部工作过程。在第三部分，你将要看到<code>resource</code>数据类型，并且和更加复杂的数据结构打交道。</p>
+
+<p>原文：<a href="http://devzone.zend.com/node/view/id/1023">http://devzone.zend.com/node/view/id/1023</a></p>
+
+	(完)
+
+	<div class="post-info">
+		20 Jul 2011  
+	
+		
+	
+		
+	</div>
+	
+	<!-- disqus start -->
+	<div id="disqus_thread"></div>
+	<script type="text/javascript">
+	    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+	    var disqus_shortname = 'jeremywei'; // required: replace example with your forum shortname
+
+	    /* * * DON'T EDIT BELOW THIS LINE * * */
+	    (function() {
+	        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+	        dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+	        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	    })();
+	</script>
+	<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+	<!-- disqus end -->
+
+	<!-- related start -->
+	<div id="related">
+	  <h2>相关内容</h2>
+	  <ul class="posts">
+	    
+	      <li><span>21 Jul 2013</span> &raquo; <a href="/viewports.html">两个viewport的故事（第一部分）</a></li>
+	    
+	      <li><span>14 Jul 2013</span> &raquo; <a href="/a-pixel-is-not.html">不是像素的像素不是像素</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/make-web-app-more-native.html">把你的网站改造成一个iOS Web App</a></li>
+	    
+	      <li><span>06 Jul 2013</span> &raquo; <a href="/cross-browser-inline-block.html">跨浏览器的Inline-Block</a></li>
+	    
+	      <li><span>30 Jun 2013</span> &raquo; <a href="/css-underscore-hack.html">The Underscore Hack</a></li>
+	    
+	  </ul>
+	</div>
+	<!-- related end -->
+</div>
+  
+<div class="footer"></div>
+<div class="power">  
+  Powered by <a href="http://github.com/" targe="_blank">Github</a> &nbsp;&amp;&amp;&nbsp; <a href="http://jekyllrb.com/" target="_blank">Jekyll</a> 
+</div>
+</div>
+
+<a href="http://github.com/jeremywei" target="_blank">
+	<img class="right-banner first" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub" />
+</a>
+
+<a href="http://www.phptherightway.com" target="_blank">
+    <img class="right-banner second" src="http://s0-weizhifeng-net.b0.upaiyun.com/images/php-the-right-way-120x60.png" alt="PHP: The Right Way"/>
+</a>
+</body>
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-5179718-7']);
+  _gaq.push(['_setDomainName', 'weizhifeng.net']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</html>
