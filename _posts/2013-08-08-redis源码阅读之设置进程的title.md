@@ -2,7 +2,6 @@
 layout: post
 title: Redis源码阅读之设置进程的Title
 ---
-##Redis源码阅读之设置进程的Title
 
 
 Redis服务器在启动时会修改在ps命令中显示的cmd的显示内容(显示如下图)。
