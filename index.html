@@ -1,15 +1,14 @@
 ---
 layout: default
-title: 小张的技术站
-excerpt: 我的首页
-tags: ['aaa', ' 啊啊']
+title: 岛民的技术博客
 ---
 
-<div id="home">
-  URL：{{page.url}}<br/>
-  {{page.title}}<br/>
-  {{page.excerpt}}<br/>
-  {{page.tags}}<br/>
-  {{page.path}}<br/>
-  {{page.categories}}
+<div class="home">
+	<h1> 最近文章</h1>
+	<ul class="posts">
+		{% for post in site.posts limit:20 %}
+		<li><span>{{ post.date | date_to_string }}</span> <span class="seperator">~</span> <a href="{{ post.url }}">{{ post.title }}</a></li>
+		{% endfor %}
+	</ul>
+	<a href="/all.html">所有文章</a>
 </div>
